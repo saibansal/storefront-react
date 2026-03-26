@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import API_CONFIG from '../apiConfig';
 
 const Home = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost/wordpress/wordpress-backend/wp-json/wc/store/products')
+    fetch(`${API_CONFIG.BASE_URL}wc/store/products`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {

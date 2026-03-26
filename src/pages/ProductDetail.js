@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import API_CONFIG from '../apiConfig';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -10,7 +11,7 @@ const ProductDetail = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`http://localhost/wordpress/wordpress-backend/wp-json/wc/store/products/${id}`)
+    fetch(`${API_CONFIG.BASE_URL}wc/store/products/${id}`)
       .then(res => {
         if (!res.ok) throw new Error('Product not found or failed to fetch');
         return res.json();
