@@ -3,7 +3,7 @@ const path = require('path');
 const axios = require('axios');
 
 // --- CONFIGURATION ---
-const SITE_URL = 'https://dev.vismaad.com/estore-frontend/'; // Your React frontend URL
+const SITE_URL = 'https://estore-dusky-five.vercel.app/'; // Your React frontend URL
 const API_BASE = 'https://dev.vismaad.com/estore/wp-json/'; // Your WP backend URL
 const OUTPUT_FILE = './public/sitemap.xml';
 
