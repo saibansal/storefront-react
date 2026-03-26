@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import axios from 'axios';
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
 
 // --- CONFIGURATION ---
 const SITE_URL = 'https://dev.vismaad.com/estore-frontend/'; // Your React frontend URL
@@ -19,7 +19,7 @@ const staticRoutes = [
 
 async function generateSitemap() {
   console.log('🚀 Generating sitemap...');
-
+  
   try {
     const urls = [];
 
@@ -31,7 +31,7 @@ async function generateSitemap() {
     // 2. Fetch products from WordPress
     console.log('📦 Fetching products from backend...');
     const response = await axios.get(`${API_BASE}wc/store/products`);
-
+    
     if (response.data && Array.isArray(response.data)) {
       response.data.forEach(product => {
         // Assuming your product route is /product/:id
@@ -43,7 +43,7 @@ async function generateSitemap() {
     // 3. Create XML content
     const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
     const xmlFooter = '\n</urlset>';
-
+    
     const xmlBody = urls.map(url => `
   <url>
     <loc>${url}</loc>
@@ -57,7 +57,7 @@ async function generateSitemap() {
     // 4. Save to public directory
     fs.writeFileSync(OUTPUT_FILE, finalXml);
     console.log(`✨ Sitemap successfully created: ${OUTPUT_FILE}`);
-
+    
     // Also update robots.txt to point to sitemap
     const robotsPath = './public/robots.txt';
     let robotsContent = '';
