@@ -33,6 +33,7 @@ const Products = () => {
             categories: p.categories || [],
             averageRating: p.average_rating,
             is_in_stock: p.is_in_stock,
+            slug: p.slug,
             raw: p
           };
         });
@@ -80,12 +81,12 @@ const Products = () => {
                   OUT OF STOCK
                 </div>
               )}
-              <Link to={`/product/${product.id}`}>
+              <Link to={`/product/${product.slug}`}>
                 <img src={product.image} alt={product.name} className="product-img" style={{ borderRadius: '1rem 1rem 0 0', margin: 0, height: '250px', objectFit: 'cover' }} />
               </Link>
               <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <Link to={`/product/${product.id}`} style={{ flex: 1, textDecoration: 'none', color: 'inherit' }}>
+                  <Link to={`/product/${product.slug}`} style={{ flex: 1, textDecoration: 'none', color: 'inherit' }}>
                     <h3 style={{ fontSize: '1.25rem' }}>{product.name}</h3>
                   </Link>
                   {Number(product.averageRating) > 0 && <span style={{ color: '#fbbf24', marginLeft: '0.5rem', whiteSpace: 'nowrap' }}>★ {product.averageRating}</span>}

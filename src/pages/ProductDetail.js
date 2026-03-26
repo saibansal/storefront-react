@@ -4,19 +4,21 @@ import { useCart } from '../context/CartContext';
 import API_CONFIG from '../apiConfig';
 
 const ProductDetail = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const { addToCart } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_CONFIG.BASE_URL}wc/store/products/${id}`)
+    fetch(`${API_CONFIG.BASE_URL}wc/store/products?slug=${slug}`)
       .then(res => {
         if (!res.ok) throw new Error('Product not found or failed to fetch');
         return res.json();
       })
-      .then(p => {
+      .then(data => {
+        if (!data || data.length === 0) throw new Error('Product not found');
+        const p = data[0]; // The slug search returns an array
         const minorUnit = p.prices?.currency_minor_unit !== undefined ? p.prices.currency_minor_unit : 2;
         const rawPrice = Number(p.prices?.price) || 0;
         const rawRegularPrice = Number(p.prices?.regular_price) || 0;
@@ -50,7 +52,7 @@ const ProductDetail = () => {
         setError(err.message);
         setLoading(false);
       });
-  }, [id]);
+  }, [slug]);
 
   if (loading) {
     return (

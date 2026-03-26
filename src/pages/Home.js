@@ -26,7 +26,8 @@ const Home = () => {
                image: p.images && p.images.length > 0 ? p.images[0].src : 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQE3CETL_OertJKScoHfblxs6CBrKGVCmVESw&s',
                categories: p.categories || [],
                averageRating: p.average_rating,
-               is_in_stock: p.is_in_stock
+               is_in_stock: p.is_in_stock,
+               slug: p.slug
             };
           });
           setFeaturedProducts(formattedProducts);
@@ -105,7 +106,7 @@ const Home = () => {
                        )}
                      </div>
 
-                     <Link to={`/product/${product.id}`} className="btn-outline" style={{ display: 'block', textAlign: 'center' }}>View Details</Link>
+                     <Link to={`/product/${product.slug}`} className="btn-outline" style={{ display: 'block', textAlign: 'center' }}>View Details</Link>
                    </div>
                  </div>
                ))}

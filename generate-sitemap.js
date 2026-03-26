@@ -34,8 +34,8 @@ async function generateSitemap() {
     
     if (response.data && Array.isArray(response.data)) {
       response.data.forEach(product => {
-        // Assuming your product route is /product/:id
-        urls.push(`${SITE_URL}product/${product.id}`);
+        // Using slugs for SEO instead of IDs
+        urls.push(`${SITE_URL}product/${product.slug}`);
       });
       console.log(`✅ Found ${response.data.length} products.`);
     }
