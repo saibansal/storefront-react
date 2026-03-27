@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import API_CONFIG from '../apiConfig';
+import ProductSkeleton from '../components/ProductSkeleton';
 
 const Products = () => {
   const { addToCart } = useCart();
@@ -49,8 +50,13 @@ const Products = () => {
 
   if (loading) {
     return (
-      <div className="page-content container" style={{ textAlign: 'center', padding: '5rem 0' }}>
-        <h2 className="text-gradient">Loading products...</h2>
+      <div className="page-content container">
+        <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '2rem' }}>Our Products</h1>
+        <div className="products-grid">
+          {[...Array(8)].map((_, i) => (
+            <ProductSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import API_CONFIG from '../apiConfig';
+import DetailSkeleton from '../components/DetailSkeleton';
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -56,8 +57,8 @@ const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="page-content container" style={{ textAlign: 'center', padding: '5rem 0' }}>
-        <h2 className="text-gradient">Loading details...</h2>
+      <div className="page-content container">
+        <DetailSkeleton />
       </div>
     );
   }

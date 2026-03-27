@@ -18,7 +18,7 @@ import './layout.css';
 
 function App() {
   return (
-    <Router>
+    <Router basename="/estore/frontend/">
       <CartProvider>
         <div className="app-container">
           <Navbar />
