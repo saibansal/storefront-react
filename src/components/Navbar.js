@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const { getCartCount } = useCart();
+  const { isAuthenticated, logout } = useAuth();
 
   return (
     <header className="main-header">
@@ -38,8 +40,14 @@ const Navbar = () => {
                 </span>
               )}
             </Link>
-            <Link to="/account" className="nav-link">Account</Link>
-            <Link to="/login" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>Login</Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/account" className="nav-link">Account</Link>
+                <button onClick={logout} className="btn-primary" style={{ padding: '0.5rem 1rem', background: 'var(--accent)' }}>Logout</button>
+              </>
+            ) : (
+              <Link to="/login" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>Login</Link>
+            )}
           </div>
         </div>
       </nav>

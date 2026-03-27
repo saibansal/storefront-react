@@ -4,7 +4,7 @@ const axios = require('axios');
 
 // --- CONFIGURATION ---
 const SITE_URL = 'https://estore-dusky-five.vercel.app/'; // Your React frontend URL
-const API_BASE = 'https://dev.vismaad.com/estore/wp-json/'; // Your WP backend URL
+const API_BASE = 'http://localhost/wordpress/wordpress-backend/wp-json/'; // Your WP backend URL
 const OUTPUT_FILE = './public/sitemap.xml';
 
 // Define your static routes
@@ -19,7 +19,7 @@ const staticRoutes = [
 
 async function generateSitemap() {
   console.log('🚀 Generating sitemap...');
-  
+
   try {
     const urls = [];
 
@@ -31,7 +31,7 @@ async function generateSitemap() {
     // 2. Fetch products from WordPress
     console.log('📦 Fetching products from backend...');
     const response = await axios.get(`${API_BASE}wc/store/products`);
-    
+
     if (response.data && Array.isArray(response.data)) {
       response.data.forEach(product => {
         // Using slugs for SEO instead of IDs
@@ -43,7 +43,7 @@ async function generateSitemap() {
     // 3. Create XML content
     const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
     const xmlFooter = '\n</urlset>';
-    
+
     const xmlBody = urls.map(url => `
   <url>
     <loc>${url}</loc>
@@ -57,7 +57,7 @@ async function generateSitemap() {
     // 4. Save to public directory
     fs.writeFileSync(OUTPUT_FILE, finalXml);
     console.log(`✨ Sitemap successfully created: ${OUTPUT_FILE}`);
-    
+
     // Also update robots.txt to point to sitemap
     const robotsPath = './public/robots.txt';
     let robotsContent = '';

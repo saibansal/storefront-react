@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import API_CONFIG from '../apiConfig';
 
 const Checkout = () => {
   const { cartItems, getCartTotal, clearCart } = useCart();
+  const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -34,6 +36,11 @@ const Checkout = () => {
   const [couponInput, setCouponInput] = useState('');
   const [discount, setDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState({ text: '', isError: false });
+
+  // Auth Modal State
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoginTab, setIsLoginTab] = useState(true);
+  const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -127,8 +134,20 @@ const Checkout = () => {
     setCouponMessage({ text: 'Coupon removed.', isError: false });
   };
 
+  const handleAuthSubmit = (e) => {
+    e.preventDefault();
+    login({ email: authForm.email, name: authForm.name || authForm.email.split('@')[0] });
+    setShowAuthModal(false);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+
     console.log('Order Data:', { ...formData, discount, total });
     alert('Order placed successfully! Thank you for your purchase.');
     clearCart();
@@ -461,7 +480,7 @@ const Checkout = () => {
               ← Return to Cart
             </button>
             <button type="submit" className="btn-primary" style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}>
-              Place Order
+              {isAuthenticated ? 'Place Order' : 'Login to Place Order'}
             </button>
           </div>
         </div>

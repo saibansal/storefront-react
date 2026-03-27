@@ -1,11 +1,20 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState([]);
+  // Initialize state from localStorage
+  const [cartItems, setCartItems] = useState(() => {
+    const saved = localStorage.getItem('aura_cart');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Persist state to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem('aura_cart', JSON.stringify(cartItems));
+  }, [cartItems]);
 
   const addToCart = (product) => {
     setCartItems(prev => {
