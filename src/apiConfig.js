@@ -1,5 +1,5 @@
 const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'https://dev.vismaad.com/estore/wp-json/',
+  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost/wordpress/wordpress-backend/wp-json/',
   CONSUMER_KEY: import.meta.env.VITE_CONSUMER_KEY || 'ck_2e385c7db77c3e2afab7ac9df70378c7a29e4df1',
   CONSUMER_SECRET: import.meta.env.VITE_CONSUMER_SECRET || 'cs_e1992fe48b1f17ac2cc19da72cb0b121d77a6905',
 };

@@ -41,6 +41,8 @@ const Checkout = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
+  const [authError, setAuthError] = useState(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -134,10 +136,36 @@ const Checkout = () => {
     setCouponMessage({ text: 'Coupon removed.', isError: false });
   };
 
-  const handleAuthSubmit = (e) => {
+  const handleAuthFormChange = (e) => {
+    const { name, value } = e.target;
+    setAuthForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
-    login({ email: authForm.email, name: authForm.name || authForm.email.split('@')[0] });
-    setShowAuthModal(false);
+    setIsAuthenticating(true);
+    setAuthError(null);
+
+    try {
+      // isLoginTab ? login (from AuthContext) : register (if implemented, else just login for now)
+      if (isLoginTab) {
+        const result = await login(authForm.email, authForm.password);
+        if (result.success) {
+          setShowAuthModal(false);
+          // Pre-fill form email if user logged in
+          setFormData(prev => ({ ...prev, email: authForm.email }));
+        } else {
+          setAuthError(result.message || 'Invalid email or password');
+        }
+      } else {
+        // Simple mock/redirect for registration for now
+        setAuthError('Registration is not available in checkout. Please use the login tab or visit the register page.');
+      }
+    } catch (err) {
+      setAuthError('An error occurred during authentication.');
+    } finally {
+      setIsAuthenticating(false);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -168,7 +196,8 @@ const Checkout = () => {
   const total = subtotal - discount + shipping;
 
   return (
-    <div className="page-content container">
+    <>
+      <div className="page-content container">
       <form onSubmit={handleSubmit} className="checkout-container">
         {/* Left Column: Form Fields */}
         <div className="checkout-main">
@@ -594,6 +623,101 @@ const Checkout = () => {
         </div>
       </form>
     </div>
+    
+    {/* Auth Modal Overlay */}
+    {showAuthModal && (
+      <div className="modal-overlay" onClick={() => setShowAuthModal(false)}>
+        <div className="auth-modal" onClick={e => e.stopPropagation()}>
+          <div className="auth-modal-header">
+            <h2 className="text-gradient">Secure Checkout</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+              Please login to proceed with your order
+            </p>
+          </div>
+          
+          <div className="auth-tabs">
+            <div 
+              className={`auth-tab ${isLoginTab ? 'active' : ''}`}
+              onClick={() => setIsLoginTab(true)}
+            >
+              Login
+            </div>
+            <div 
+              className={`auth-tab ${!isLoginTab ? 'active' : ''}`}
+              onClick={() => setIsLoginTab(false)}
+            >
+              Sign Up
+            </div>
+          </div>
+          
+          <div className="auth-modal-body">
+            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {authError && <div className="auth-error">{authError}</div>}
+              
+              {!isLoginTab && (
+                <div className="form-group">
+                  <label>Full Name</label>
+                  <input 
+                    type="text" 
+                    name="name" 
+                    className="form-input" 
+                    placeholder="John Doe"
+                    value={authForm.name}
+                    onChange={handleAuthFormChange}
+                    required={!isLoginTab}
+                  />
+                </div>
+              )}
+              
+              <div className="form-group">
+                <label>Email Address</label>
+                <input 
+                  required 
+                  type="email" 
+                  name="email" 
+                  className="form-input" 
+                  placeholder="email@example.com"
+                  value={authForm.email}
+                  onChange={handleAuthFormChange}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Password</label>
+                <input 
+                  required 
+                  type="password" 
+                  name="password" 
+                  className="form-input" 
+                  placeholder="••••••••"
+                  value={authForm.password}
+                  onChange={handleAuthFormChange}
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                style={{ marginTop: '0.5rem', padding: '1rem' }}
+                disabled={isAuthenticating}
+              >
+                {isAuthenticating ? 'Processing...' : (isLoginTab ? 'Sign In & Continue' : 'Create Account')}
+              </button>
+              
+              <button 
+                type="button" 
+                className="btn-link" 
+                style={{ justifyContent: 'center', marginTop: '0.5rem' }}
+                onClick={() => setShowAuthModal(false)}
+              >
+                Continue as Guest
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

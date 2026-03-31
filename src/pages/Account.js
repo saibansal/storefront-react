@@ -114,11 +114,11 @@ const Account = () => {
 
   return (
     <div className="page-content container" style={{ padding: '4rem 0' }}>
-      <div className="account-layout" style={{ display: 'flex', gap: '4rem' }}>
+      <div className="account-layout" style={{ display: 'flex', gap: '4rem', marginTop: '4rem' }}>
 
         {/* Sidebar Navigation */}
         <aside className="account-sidebar" style={{ width: '220px', flexShrink: 0 }}>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '2.5rem', fontWeight: 'normal' }}>My account</h1>
+          <h1 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 'bold' }}>My account</h1>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
             {menuItems.map(item => (
               <li key={item.id}>
@@ -127,7 +127,7 @@ const Account = () => {
                   style={{
                     background: 'none', border: 'none', padding: 0,
                     fontSize: '1.1rem', cursor: 'pointer',
-                    color: subTab === item.id ? 'black' : '#666',
+                    color: subTab === item.id ? '#fff' : '#666',
                     fontWeight: subTab === item.id ? '600' : '400',
                     textDecoration: subTab === item.id ? 'underline' : 'none',
                     textUnderlineOffset: '8px'
@@ -143,14 +143,14 @@ const Account = () => {
         {/* Main Content Area */}
         <main className="account-main" style={{ flex: 1 }}>
           {subTab === 'dashboard' && (
-            <div className="dashboard-view" style={{ fontSize: '1.1rem', color: '#444', lineHeight: '1.6' }}>
+            <div className="dashboard-view" style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,.5)', lineHeight: '1.6' }}>
               <p className="mb-4">
-                Hello <strong>{user.name || user.nicename}</strong> (not <strong>{user.name || user.nicename}</strong>? <span onClick={logout} style={{ textDecoration: 'underline', cursor: 'pointer', color: '#000' }}>Log out</span>)
+                Hello <strong>{user.name || user.nicename}</strong> (not <strong>{user.name || user.nicename}</strong>? <span onClick={logout} style={{ textDecoration: 'underline', cursor: 'pointer', color: 'rgba(255,255,255,.8)' }}>Log out</span>)
               </p>
               <p>
-                From your account dashboard you can view your <span onClick={() => setSubTab('orders')} style={{ textDecoration: 'underline', cursor: 'pointer', color: '#000' }}>recent orders</span>,
-                manage your <span onClick={() => setSubTab('addresses')} style={{ textDecoration: 'underline', cursor: 'pointer', color: '#000' }}>shipping and billing addresses</span>,
-                and <span onClick={() => setSubTab('details')} style={{ textDecoration: 'underline', cursor: 'pointer', color: '#000' }}>edit your password and account details</span>.
+                From your account dashboard you can view your <span onClick={() => setSubTab('orders')} style={{ textDecoration: 'underline', cursor: 'pointer', color: 'rgba(255,255,255,.8)' }}>recent orders</span>,
+                manage your <span onClick={() => setSubTab('addresses')} style={{ textDecoration: 'underline', cursor: 'pointer', color: 'rgba(255,255,255,.8)' }}>shipping and billing addresses</span>,
+                and <span onClick={() => setSubTab('details')} style={{ textDecoration: 'underline', cursor: 'pointer', color: 'rgba(255,255,255,.8)' }}>edit your password and account details</span>.
               </p>
             </div>
           )}
@@ -219,7 +219,7 @@ const Account = () => {
                   <input type="email" className="form-input" style={{ background: 'white', color: 'black', border: '1px solid #ccc' }} value={editedUser.email} onChange={e => setEditedUser({ ...editedUser, email: e.target.value })} required />
                 </div>
 
-                <button type="submit" className="btn-primary" disabled={isUpdating} style={{ background: '#333', color: 'white', padding: '1.2rem 2.5rem', border: 'none' }}>
+                <button type="submit" className="btn-primary" disabled={isUpdating} style={{ color: 'white', padding: '1.2rem 2.5rem', border: 'none' }}>
                   {isUpdating ? 'Saving...' : 'Save changes'}
                 </button>
               </form>

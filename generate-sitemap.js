@@ -4,7 +4,7 @@ const axios = require('axios');
 
 // --- CONFIGURATION ---
 const SITE_URL = 'https://estore-dusky-five.vercel.app/'; // Your React frontend URL
-const API_BASE = 'https://dev.vismaad.com/estore/wp-json/'; // Your WP backend URL
+const API_BASE = 'http://localhost/wordpress/wordpress-backend/wp-json/'; // Your WP backend URL
 const OUTPUT_FILE = './public/sitemap.xml';
 
 // Define your static routes
