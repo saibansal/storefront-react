@@ -27,7 +27,7 @@ const Checkout = () => {
     billingState: 'Punjab',
     billingPinCode: '',
     shippingOption: 'free',
-    paymentOption: 'cod',
+    paymentOption: '',
     addNote: false,
     orderNote: ''
   });
@@ -45,13 +45,74 @@ const Checkout = () => {
   const [authForm, setAuthForm] = useState({ email: '', password: '', name: '' });
   const [authError, setAuthError] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
 
   const [isApplying, setIsApplying] = useState(false);
 
   const gateways = [
     { id: 'cod', title: 'Cash on Delivery', description: 'Pay with cash upon delivery.' },
-    { id: 'bacs', title: 'Direct Bank Transfer', description: 'Make your payment directly into our bank account. Please use your Order ID as the payment reference.' }
+    { id: 'bacs', title: 'Direct Bank Transfer', description: 'Make your payment directly into our bank account. Please use your Order ID as the payment reference.' },
+    { id: 'paypal', title: 'PayPal', description: 'Pay via PayPal; you can pay with your credit card if you don’t have a PayPal account.' }
   ];
+
+  useEffect(() => {
+    if (formData.paymentOption === 'paypal' && !isScriptLoaded) {
+      const config = API_CONFIG.PAYPAL;
+      const clientId = config.MODE === 'sandbox' ? config.SANDBOX_CLIENT_ID : config.LIVE_CLIENT_ID;
+      if (clientId) {
+        const script = document.createElement('script');
+        // Disable fastlane to avoid consent 400 errors and specify components
+        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${config.CURRENCY || 'USD'}&components=buttons&disable-funding=credit,card,fastlane`;
+        script.async = true;
+        script.onload = () => {
+          setIsScriptLoaded(true);
+        };
+        document.body.appendChild(script);
+      }
+    }
+  }, [formData.paymentOption, isScriptLoaded]);
+
+  useEffect(() => {
+    if (isScriptLoaded && formData.paymentOption === 'paypal') {
+        renderPayPalButtons();
+    }
+  }, [formData.paymentOption, isScriptLoaded]);
+
+  const renderPayPalButtons = () => {
+    if (window.paypal && document.getElementById('paypal-button-container')) {
+      const container = document.getElementById('paypal-button-container');
+      // Only render if the container is empty to avoid "Detected popup close" on re-renders
+      if (container.children.length > 0) return;
+
+      window.paypal.Buttons({
+        createOrder: (data, actions) => {
+          return actions.order.create({
+            purchase_units: [{
+              amount: { value: total.toFixed(2) }
+            }]
+          });
+        },
+        onApprove: (data, actions) => {
+          return actions.order.capture().then(details => {
+            handleSubmit(null, 'paypal', details.id);
+          });
+        },
+        onCancel: () => {
+          setError('Payment was cancelled. You can try again or choose another method.');
+        },
+        onError: (err) => {
+          // Check for the "Detected popup close" error and handle it as a cancellation
+          if (err && err.message && err.message.includes('Detected popup close')) {
+             setError('PayPal window was closed. Please click the PayPal button again to retry.');
+          } else {
+             console.error('PayPal Error:', err);
+             setError('PayPal is currently unavailable. Please try another payment method.');
+          }
+        }
+      }).render('#paypal-button-container');
+    }
+  };
+
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -177,30 +238,54 @@ const Checkout = () => {
     try {
       const pmId = methodOverride || formData.paymentOption;
       const gatewaysList = gateways;
+      
+      const getCountryCode = (countryName) => {
+        const codes = { 
+          'India': 'IN', 'United States': 'US', 'United Kingdom': 'GB', 'USA': 'US', 'UK': 'GB' 
+        };
+        return codes[countryName] || countryName;
+      };
+
+      const getStateCode = (stateName) => {
+        const codes = { 
+          'Punjab': 'PB', 'Delhi': 'DL', 'Maharashtra': 'MH', 'Karnataka': 'KA',
+          'Tamil Nadu': 'TN', 'Gujarat': 'GJ', 'West Bengal': 'WB', 'Rajasthan': 'RJ',
+          'Uttar Pradesh': 'UP', 'Telangana': 'TG', 'Haryana': 'HR', 'Bihar': 'BR'
+        };
+        return codes[stateName] || stateName;
+      };
+
+      // Safeguard for mandatory fields to avoid "Invalid parameter" error
+      const safeVal = (val, fallback = 'N/A') => (val && val.trim() !== '') ? val : fallback;
+
+      const billing = {
+        first_name: (formData.useForBilling ? formData.firstName : formData.billingFirstName) || 'Guest',
+        last_name: (formData.useForBilling ? formData.lastName : formData.billingLastName) || 'User',
+        address_1: safeVal(formData.useForBilling ? formData.address : formData.billingAddress),
+        city: safeVal(formData.useForBilling ? formData.city : formData.billingCity, 'City'),
+        state: getStateCode(formData.useForBilling ? formData.state : formData.billingState) || 'PB',
+        postcode: safeVal(formData.useForBilling ? formData.pinCode : formData.billingPinCode, '000000'),
+        country: getCountryCode(formData.useForBilling ? formData.country : formData.billingCountry) || 'IN',
+        email: formData.email || 'guest@example.com',
+        phone: formData.phone || '0000000000'
+      };
+
+      const shipping = {
+        first_name: formData.firstName || billing.first_name,
+        last_name: formData.lastName || billing.last_name,
+        address_1: safeVal(formData.address) || billing.address_1,
+        city: safeVal(formData.city) || billing.city,
+        state: getStateCode(formData.state) || billing.state,
+        postcode: safeVal(formData.pinCode, '000000') || billing.postcode,
+        country: getCountryCode(formData.country) || billing.country
+      };
+
       const orderData = {
         payment_method: pmId,
         payment_method_title: gatewaysList.find(g => g.id === pmId)?.title || 'Payment',
         transaction_id: transactionId || '',
-        billing: {
-          first_name: formData.useForBilling ? formData.firstName : formData.billingFirstName,
-          last_name: formData.useForBilling ? formData.lastName : formData.billingLastName,
-          address_1: formData.useForBilling ? formData.address : formData.billingAddress,
-          city: formData.useForBilling ? formData.city : formData.billingCity,
-          state: formData.useForBilling ? formData.state : formData.billingState,
-          postcode: formData.useForBilling ? formData.pinCode : formData.billingPinCode,
-          country: formData.useForBilling ? formData.country : formData.billingCountry,
-          email: formData.email,
-          phone: formData.phone
-        },
-        shipping: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          address_1: formData.address,
-          city: formData.city,
-          state: formData.state,
-          postcode: formData.pinCode,
-          country: formData.country
-        },
+        billing: billing,
+        shipping: shipping,
         line_items: cartItems.map(item => ({
           product_id: item.id,
           quantity: item.quantity
@@ -486,9 +571,39 @@ const Checkout = () => {
               </section>
             )}
 
-            <div style={{ display: 'none' }}>
-              <input type="hidden" name="paymentOption" value={formData.paymentOption} />
-            </div>
+            <section className="checkout-section">
+              <h3>Payment options</h3>
+              {gateways.length === 0 ? (
+                <div style={{ padding: '1rem', color: '#ef4444' }}>No payment methods available. Please contact the store owner.</div>
+              ) : (
+                gateways.map(gw => (
+                  <div key={gw.id}>
+                    <div
+                      className={`option-box ${formData.paymentOption === gw.id ? 'active' : ''}`}
+                      onClick={() => setFormData(p => ({ ...p, paymentOption: gw.id }))}
+                    >
+                      <input type="radio" checked={formData.paymentOption === gw.id} readOnly />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>{gw.title}</div>
+                      </div>
+                    </div>
+                    {formData.paymentOption === gw.id && (
+                      <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem', marginTop: '-0.25rem', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
+                        <div
+                          style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: gw.id === 'paypal' ? '1rem' : '0' }}
+                          dangerouslySetInnerHTML={{ __html: gw.description }}
+                        />
+                        {gw.id === 'paypal' && (
+                          <div id="paypal-button-container" style={{ marginTop: '1rem', minHeight: '150px' }}>
+                            {!isScriptLoaded && <div style={{ textAlign: 'center', padding: '1rem' }}>Loading PayPal...</div>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </section>
 
             <label className="checkbox-group" style={{ marginTop: '1.5rem' }}>
               <input
@@ -528,14 +643,16 @@ const Checkout = () => {
               <button type="button" className="btn-link" onClick={() => navigate('/cart')}>
                 ← Return to Cart
               </button>
-              <button
-                type="submit"
-                className="btn-primary"
-                style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}
-                disabled={isProcessing}
-              >
-                {isProcessing ? 'Processing...' : (isAuthenticated ? 'Place Order' : 'Login to Place Order')}
-              </button>
+              {formData.paymentOption !== 'paypal' && (
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}
+                  disabled={isProcessing || !formData.paymentOption}
+                >
+                  {isProcessing ? 'Processing...' : (isAuthenticated ? 'Place Order' : 'Login to Place Order')}
+                </button>
+              )}
             </div>
           </div>
 
