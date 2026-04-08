@@ -486,58 +486,33 @@ const Checkout = () => {
               </section>
             )}
 
-            <section className="checkout-section">
-              <h3>Payment options</h3>
-              {gateways.length === 0 ? (
-                <div style={{ padding: '1rem', color: '#ef4444' }}>No payment methods available. Please contact the store owner.</div>
-              ) : (
-                gateways.map(gw => (
-                  <div key={gw.id}>
-                    <div
-                      className={`option-box ${formData.paymentOption === gw.id ? 'active' : ''}`}
-                      onClick={() => setFormData(p => ({ ...p, paymentOption: gw.id }))}
-                    >
-                      <input type="radio" checked={formData.paymentOption === gw.id} readOnly />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500 }}>{gw.title}</div>
-                      </div>
-                    </div>
-                    {formData.paymentOption === gw.id && (
-                      <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem', marginTop: '-0.25rem', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
-                        <div
-                          style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
-                          dangerouslySetInnerHTML={{ __html: gw.description }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
+            <div style={{ display: 'none' }}>
+              <input type="hidden" name="paymentOption" value={formData.paymentOption} />
+            </div>
 
-              <label className="checkbox-group" style={{ marginTop: '1.5rem' }}>
-                <input
-                  type="checkbox"
-                  name="addNote"
-                  checked={formData.addNote}
+            <label className="checkbox-group" style={{ marginTop: '1.5rem' }}>
+              <input
+                type="checkbox"
+                name="addNote"
+                checked={formData.addNote}
+                onChange={handleInputChange}
+              />
+              Add a note to your order
+            </label>
+
+            {formData.addNote && (
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label>Order notes (optional)</label>
+                <textarea
+                  name="orderNote"
+                  className="form-input"
+                  style={{ minHeight: '100px', resize: 'vertical' }}
+                  placeholder="Notes about your order, e.g. special notes for delivery."
+                  value={formData.orderNote}
                   onChange={handleInputChange}
-                />
-                Add a note to your order
-              </label>
-
-              {formData.addNote && (
-                <div className="form-group" style={{ marginTop: '1rem' }}>
-                  <label>Order notes (optional)</label>
-                  <textarea
-                    name="orderNote"
-                    className="form-input"
-                    style={{ minHeight: '100px', resize: 'vertical' }}
-                    placeholder="Notes about your order, e.g. special notes for delivery."
-                    value={formData.orderNote}
-                    onChange={handleInputChange}
-                  ></textarea>
-                </div>
-              )}
-            </section>
+                ></textarea>
+              </div>
+            )}
 
             {error && (
               <div style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem' }}>
