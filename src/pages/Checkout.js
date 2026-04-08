@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import API_CONFIG from '../apiConfig';
@@ -34,6 +34,8 @@ const Checkout = () => {
   const [couponInput, setCouponInput] = useState('');
   const [discount, setDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState({ text: '', isError: false });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -44,6 +46,16 @@ const Checkout = () => {
   };
 
   const [isApplying, setIsApplying] = useState(false);
+
+  // Static gateways for now, removing all API-based integration
+  const gateways = [
+    { id: 'cod', title: 'Cash on Delivery', description: 'Pay with cash upon delivery.' },
+    { id: 'bacs', title: 'Direct Bank Transfer', description: 'Make your payment directly into our bank account. Please use your Order ID as the payment reference.' }
+  ];
+
+  const subtotal = getCartTotal();
+  const shipping = 0;
+  const total = subtotal - discount + shipping;
 
   const handleApplyCoupon = async (e) => {
     e.preventDefault();
@@ -64,9 +76,9 @@ const Checkout = () => {
       });
 
       if (!response.ok) throw new Error('Failed to validate coupon.');
-      
+
       const coupons = await response.json();
-      
+
       if (coupons && coupons.length > 0) {
         const coupon = coupons[0];
         const subtotal = getCartTotal();
@@ -104,9 +116,9 @@ const Checkout = () => {
         if (discountAmount > subtotal) discountAmount = subtotal;
 
         setDiscount(discountAmount);
-        setCouponMessage({ 
-          text: `Coupon "${coupon.code.toUpperCase()}" applied! (Discount: ₹${discountAmount.toFixed(2)})`, 
-          isError: false 
+        setCouponMessage({
+          text: `Coupon "${coupon.code.toUpperCase()}" applied! (Discount: ₹${discountAmount.toFixed(2)})`,
+          isError: false
         });
       } else {
         setDiscount(0);
@@ -127,30 +139,84 @@ const Checkout = () => {
     setCouponMessage({ text: 'Coupon removed.', isError: false });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Order Data:', { ...formData, discount, total });
-    alert('Order placed successfully! Thank you for your purchase.');
-    clearCart();
-    navigate('/');
+
+
+  const handleSubmit = async (e, isPrePaid = false) => {
+    if (e) e.preventDefault();
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      // Create WooCommerce Order
+      const orderData = {
+        payment_method: formData.paymentOption,
+        payment_method_title: gateways.find(g => g.id === formData.paymentOption)?.title || 'Payment',
+        set_paid: isPrePaid,
+        billing: {
+          first_name: formData.useForBilling ? formData.firstName : formData.billingFirstName,
+          last_name: formData.useForBilling ? formData.lastName : formData.billingLastName,
+          address_1: formData.useForBilling ? formData.address : formData.billingAddress,
+          city: formData.useForBilling ? formData.city : formData.billingCity,
+          state: formData.useForBilling ? formData.state : formData.billingState,
+          postcode: formData.useForBilling ? formData.pinCode : formData.billingPinCode,
+          country: formData.useForBilling ? formData.country : formData.billingCountry,
+          email: formData.email,
+          phone: formData.phone
+        },
+        shipping: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          address_1: formData.address,
+          city: formData.city,
+          state: formData.state,
+          postcode: formData.pinCode,
+          country: formData.country
+        },
+        line_items: cartItems.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity
+        })),
+        customer_note: formData.addNote ? formData.orderNote : ''
+      };
+
+      const basicAuth = btoa(`${API_CONFIG.CONSUMER_KEY}:${API_CONFIG.CONSUMER_SECRET}`);
+      const response = await fetch(`${API_CONFIG.BASE_URL}wc/v3/orders`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${basicAuth}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        setIsProcessing(false);
+        clearCart();
+        navigate(`/order-success/${responseData.id || responseData.number}`);
+      } else {
+        throw new Error(responseData.message || 'Failed to create order');
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setError(err.message || 'An error occurred while processing your order.');
+      setIsProcessing(false);
+    }
   };
 
   if (cartItems.length === 0) {
     return (
       <div className="page-content container" style={{ textAlign: 'center', padding: '5rem 0' }}>
-         <h2 style={{ marginBottom: '1.5rem' }}>Your cart is empty</h2>
-         <button onClick={() => navigate('/products')} className="btn-primary">Browse Products</button>
+        <h2 style={{ marginBottom: '1.5rem' }}>Your cart is empty</h2>
+        <button onClick={() => navigate('/products')} className="btn-primary">Browse Products</button>
       </div>
     );
   }
 
-  const subtotal = getCartTotal();
-  const shipping = 0;
-  const total = subtotal - discount + shipping;
-
   return (
     <div className="page-content container">
-      <form onSubmit={handleSubmit} className="checkout-container">
+      <form onSubmit={(e) => !['paypal', 'ppcp-gateway', 'stripe'].includes(formData.paymentOption) && handleSubmit(e)} className="checkout-container">
         {/* Left Column: Form Fields */}
         <div className="checkout-main">
           {/* Contact Information */}
@@ -158,12 +224,12 @@ const Checkout = () => {
             <h3>Contact information</h3>
             <div className="form-group">
               <label>Email address</label>
-              <input 
-                required 
-                type="email" 
+              <input
+                required
+                type="email"
                 name="email"
-                className="form-input" 
-                placeholder="email@example.com" 
+                className="form-input"
+                placeholder="email@example.com"
                 value={formData.email}
                 onChange={handleInputChange}
               />
@@ -176,8 +242,8 @@ const Checkout = () => {
             <div className="form-grid">
               <div className="form-group full-width">
                 <label>Country/Region</label>
-                <select 
-                  name="country" 
+                <select
+                  name="country"
                   className="form-select"
                   value={formData.country}
                   onChange={handleInputChange}
@@ -187,27 +253,27 @@ const Checkout = () => {
                   <option value="UK">United Kingdom</option>
                 </select>
               </div>
-              
+
               <div className="form-group">
                 <label>First name</label>
-                <input 
-                  required 
-                  type="text" 
+                <input
+                  required
+                  type="text"
                   name="firstName"
-                  className="form-input" 
+                  className="form-input"
                   placeholder="First name"
                   value={formData.firstName}
                   onChange={handleInputChange}
                 />
               </div>
-              
+
               <div className="form-group">
                 <label>Last name</label>
-                <input 
-                  required 
-                  type="text" 
+                <input
+                  required
+                  type="text"
                   name="lastName"
-                  className="form-input" 
+                  className="form-input"
                   placeholder="Last name"
                   value={formData.lastName}
                   onChange={handleInputChange}
@@ -216,28 +282,24 @@ const Checkout = () => {
 
               <div className="form-group full-width">
                 <label>Address</label>
-                <input 
-                  required 
-                  type="text" 
+                <input
+                  required
+                  type="text"
                   name="address"
-                  className="form-input" 
+                  className="form-input"
                   placeholder="Address"
                   value={formData.address}
                   onChange={handleInputChange}
                 />
               </div>
 
-              <button type="button" className="btn-link" style={{ gridColumn: 'span 2', justifyContent: 'flex-start', margin: '-0.5rem 0 1rem 0' }}>
-                + Add apartment, suite, etc.
-              </button>
-
               <div className="form-group">
                 <label>City</label>
-                <input 
-                  required 
-                  type="text" 
+                <input
+                  required
+                  type="text"
                   name="city"
-                  className="form-input" 
+                  className="form-input"
                   placeholder="City"
                   value={formData.city}
                   onChange={handleInputChange}
@@ -246,8 +308,8 @@ const Checkout = () => {
 
               <div className="form-group">
                 <label>State</label>
-                <select 
-                  name="state" 
+                <select
+                  name="state"
                   className="form-select"
                   value={formData.state}
                   onChange={handleInputChange}
@@ -261,11 +323,11 @@ const Checkout = () => {
 
               <div className="form-group">
                 <label>PIN Code</label>
-                <input 
-                  required 
-                  type="text" 
+                <input
+                  required
+                  type="text"
                   name="pinCode"
-                  className="form-input" 
+                  className="form-input"
                   placeholder="PIN Code"
                   value={formData.pinCode}
                   onChange={handleInputChange}
@@ -274,10 +336,10 @@ const Checkout = () => {
 
               <div className="form-group">
                 <label>Phone (optional)</label>
-                <input 
-                  type="tel" 
+                <input
+                  type="tel"
                   name="phone"
-                  className="form-input" 
+                  className="form-input"
                   placeholder="Phone"
                   value={formData.phone}
                   onChange={handleInputChange}
@@ -286,8 +348,8 @@ const Checkout = () => {
             </div>
 
             <label className="checkbox-group">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 name="useForBilling"
                 checked={formData.useForBilling}
                 onChange={handleInputChange}
@@ -303,8 +365,8 @@ const Checkout = () => {
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label>Country/Region</label>
-                  <select 
-                    name="billingCountry" 
+                  <select
+                    name="billingCountry"
                     className="form-select"
                     value={formData.billingCountry}
                     onChange={handleInputChange}
@@ -314,27 +376,27 @@ const Checkout = () => {
                     <option value="UK">United Kingdom</option>
                   </select>
                 </div>
-                
+
                 <div className="form-group">
                   <label>First name</label>
-                  <input 
-                    required 
-                    type="text" 
+                  <input
+                    required
+                    type="text"
                     name="billingFirstName"
-                    className="form-input" 
+                    className="form-input"
                     placeholder="First name"
                     value={formData.billingFirstName}
                     onChange={handleInputChange}
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Last name</label>
-                  <input 
-                    required 
-                    type="text" 
+                  <input
+                    required
+                    type="text"
                     name="billingLastName"
-                    className="form-input" 
+                    className="form-input"
                     placeholder="Last name"
                     value={formData.billingLastName}
                     onChange={handleInputChange}
@@ -343,11 +405,11 @@ const Checkout = () => {
 
                 <div className="form-group full-width">
                   <label>Address</label>
-                  <input 
-                    required 
-                    type="text" 
+                  <input
+                    required
+                    type="text"
                     name="billingAddress"
-                    className="form-input" 
+                    className="form-input"
                     placeholder="Address"
                     value={formData.billingAddress}
                     onChange={handleInputChange}
@@ -356,11 +418,11 @@ const Checkout = () => {
 
                 <div className="form-group">
                   <label>City</label>
-                  <input 
-                    required 
-                    type="text" 
+                  <input
+                    required
+                    type="text"
                     name="billingCity"
-                    className="form-input" 
+                    className="form-input"
                     placeholder="City"
                     value={formData.billingCity}
                     onChange={handleInputChange}
@@ -369,8 +431,8 @@ const Checkout = () => {
 
                 <div className="form-group">
                   <label>State</label>
-                  <select 
-                    name="billingState" 
+                  <select
+                    name="billingState"
                     className="form-select"
                     value={formData.billingState}
                     onChange={handleInputChange}
@@ -384,11 +446,11 @@ const Checkout = () => {
 
                 <div className="form-group">
                   <label>PIN Code</label>
-                  <input 
-                    required 
-                    type="text" 
+                  <input
+                    required
+                    type="text"
                     name="billingPinCode"
-                    className="form-input" 
+                    className="form-input"
                     placeholder="PIN Code"
                     value={formData.billingPinCode}
                     onChange={handleInputChange}
@@ -397,39 +459,42 @@ const Checkout = () => {
               </div>
             </section>
           )}
-
-          {/* Shipping Options */}
-          <section className="checkout-section">
-            <h3>Shipping options</h3>
-            <div 
-              className={`option-box ${formData.shippingOption === 'free' ? 'active' : ''}`}
-              onClick={() => setFormData(p => ({...p, shippingOption: 'free'}))}
-            >
-              <input type="radio" checked={formData.shippingOption === 'free'} readOnly />
-              <div style={{ flex: 1 }}>
-                <span>Free shipping</span>
-              </div>
-              <span style={{ fontWeight: 600 }}>FREE</span>
-            </div>
-          </section>
-
           {/* Payment Options */}
           <section className="checkout-section">
             <h3>Payment options</h3>
-            <div 
-              className={`option-box ${formData.paymentOption === 'cod' ? 'active' : ''}`}
-              onClick={() => setFormData(p => ({...p, paymentOption: 'cod'}))}
-            >
-              <input type="radio" checked={formData.paymentOption === 'cod'} readOnly />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 500 }}>Cash on delivery</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Pay with cash upon delivery.</div>
-              </div>
-            </div>
+
+            {isFetchingGateways ? (
+              <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>Loading payment options...</div>
+            ) : gateways.length === 0 ? (
+              <div style={{ padding: '1rem', color: '#ef4444' }}>No payment methods available. Please contact the store owner.</div>
+            ) : (
+              gateways.map(gw => (
+                <div key={gw.id}>
+                  <div
+                    className={`option-box ${formData.paymentOption === gw.id ? 'active' : ''}`}
+                    onClick={() => setFormData(p => ({ ...p, paymentOption: gw.id }))}
+                  >
+                    <input type="radio" checked={formData.paymentOption === gw.id} readOnly />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500 }}>{gw.title}</div>
+                    </div>
+                  </div>
+
+                  {formData.paymentOption === gw.id && (
+                    <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem', marginTop: '-0.25rem', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
+                      <div
+                        style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
+                        dangerouslySetInnerHTML={{ __html: gw.description }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
 
             <label className="checkbox-group" style={{ marginTop: '1.5rem' }}>
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 name="addNote"
                 checked={formData.addNote}
                 onChange={handleInputChange}
@@ -440,7 +505,7 @@ const Checkout = () => {
             {formData.addNote && (
               <div className="form-group" style={{ marginTop: '1rem' }}>
                 <label>Order notes (optional)</label>
-                <textarea 
+                <textarea
                   name="orderNote"
                   className="form-input"
                   style={{ minHeight: '100px', resize: 'vertical' }}
@@ -452,16 +517,27 @@ const Checkout = () => {
             )}
           </section>
 
+          {error && (
+            <div style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              {error}
+            </div>
+          )}
+
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '2rem 0' }}>
-            By proceeding with your purchase you agree to our <a href="#" style={{ textDecoration: 'underline' }}>Terms and Conditions</a> and <a href="#" style={{ textDecoration: 'underline' }}>Privacy Policy</a>
+            By proceeding with your purchase you agree to our <Link to="/terms" style={{ textDecoration: 'underline' }}>Terms and Conditions</Link> and <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>
           </p>
 
           <div className="checkout-footer">
             <button type="button" className="btn-link" onClick={() => navigate('/cart')}>
               ← Return to Cart
             </button>
-            <button type="submit" className="btn-primary" style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}>
-              Place Order
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}
+              disabled={isProcessing}
+            >
+              {isProcessing ? 'Processing...' : 'Place Order'}
             </button>
           </div>
         </div>
@@ -469,7 +545,7 @@ const Checkout = () => {
         {/* Right Column: Order Summary */}
         <div className="summary-sidebar glass-panel">
           <h3>Order summary</h3>
-          
+
           <div className="checkout-product-list">
             {cartItems.map(item => (
               <div key={item.id} className="checkout-product-card">
@@ -480,16 +556,11 @@ const Checkout = () => {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 500, fontSize: '0.95rem' }}>{item.name}</div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {item.description ? item.description.substring(0, 50) + '...' : 'Product description...'}
+                    {item.description ? item.description.replace(/<[^>]*>/g, '').substring(0, 50) + '...' : 'Product description...'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontWeight: 600 }}>₹{(item.price * item.quantity).toFixed(2)}</div>
-                  {item.oldPrice && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
-                      ₹{(item.oldPrice * item.quantity).toFixed(2)}
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
@@ -502,16 +573,16 @@ const Checkout = () => {
 
           {showCoupon && (
             <div className="coupon-input-group">
-              <input 
-                type="text" 
-                placeholder="Discount code" 
+              <input
+                type="text"
+                placeholder="Discount code"
                 value={couponInput}
                 onChange={(e) => setCouponInput(e.target.value)}
                 disabled={isApplying}
               />
-              <button 
-                type="button" 
-                className="btn-primary" 
+              <button
+                type="button"
+                className="btn-primary"
                 style={{ height: 'auto', borderRadius: '0.5rem', padding: '0.5rem 1.5rem' }}
                 onClick={handleApplyCoupon}
                 disabled={isApplying}
@@ -522,26 +593,26 @@ const Checkout = () => {
           )}
 
           {couponMessage.text && (
-            <div style={{ 
-              fontSize: '0.85rem', 
-              marginBottom: '1.5rem', 
+            <div style={{
+              fontSize: '0.85rem',
+              marginBottom: '1.5rem',
               marginTop: '-1rem',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              color: couponMessage.isError ? '#ef4444' : 'var(--primary)' 
+              color: couponMessage.isError ? '#ef4444' : 'var(--primary)'
             }}>
               <span>{couponMessage.text}</span>
               {discount > 0 && !isApplying && (
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleRemoveCoupon}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: '#6b7280', 
-                    textDecoration: 'underline', 
-                    fontSize: '0.75rem', 
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#6b7280',
+                    textDecoration: 'underline',
+                    fontSize: '0.75rem',
                     cursor: 'pointer',
                     padding: '0'
                   }}
