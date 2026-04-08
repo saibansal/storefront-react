@@ -1,15 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const { getCartCount } = useCart();
+  const { isAuthenticated, logout } = useAuth();
 
   return (
     <header className="main-header">
-      <div className="top-banner">
+      {/* <div className="top-banner">
         <p>✨ Free Premium Shipping on All Orders Over $200! ✨ <Link to="/products" style={{ color: 'var(--primary)', fontWeight: 'bold', marginLeft: '10px' }}>Shop Now</Link></p>
-      </div>
+      </div> */}
       <nav className="navbar">
         <div className="container">
           <Link to="/" className="nav-brand">Aura Store</Link>
@@ -38,8 +40,14 @@ const Navbar = () => {
                 </span>
               )}
             </Link>
-            <Link to="/account" className="nav-link">Account</Link>
-            <Link to="/login" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>Login</Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/account" className="nav-link">Account</Link>
+                <button onClick={logout} className="btn-primary" style={{ padding: '0.5rem 1rem', background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}>Logout</button>
+              </>
+            ) : (
+              <Link to="/login" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>Login</Link>
+            )}
           </div>
         </div>
       </nav>

@@ -2,4 +2,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://dev.vismaad.com/estore-frontend/sitemap.xml
+Sitemap: http://localhost/wordpress/wordpress-backend-frontend/sitemap.xml
