@@ -8,7 +8,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_CONFIG.BASE_URL}wc/store/products`)
+    fetch(`${API_CONFIG.BASE_URL}wc/store/v1/products`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {

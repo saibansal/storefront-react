@@ -12,7 +12,7 @@ const ProductDetail = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_CONFIG.BASE_URL}wc/store/products?slug=${slug}`)
+    fetch(`${API_CONFIG.BASE_URL}wc/store/v1/products?slug=${slug}`)
       .then(res => {
         if (!res.ok) throw new Error('Product not found or failed to fetch');
         return res.json();

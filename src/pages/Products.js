@@ -11,7 +11,7 @@ const Products = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_CONFIG.BASE_URL}wc/store/products`)
+    fetch(`${API_CONFIG.BASE_URL}wc/store/v1/products`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch products');
         return res.json();

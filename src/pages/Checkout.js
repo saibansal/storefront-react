@@ -46,6 +46,13 @@ const Checkout = () => {
   const [authError, setAuthError] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+  const [isApplying, setIsApplying] = useState(false);
+
+  const gateways = [
+    { id: 'cod', title: 'Cash on Delivery', description: 'Pay with cash upon delivery.' },
+    { id: 'bacs', title: 'Direct Bank Transfer', description: 'Make your payment directly into our bank account. Please use your Order ID as the payment reference.' }
+  ];
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -54,13 +61,28 @@ const Checkout = () => {
     }));
   };
 
-  const [isApplying, setIsApplying] = useState(false);
+  const handleAuthFormChange = (e) => {
+    const { name, value } = e.target;
+    setAuthForm(prev => ({ ...prev, [name]: value }));
+  };
 
-  // Static gateways for now, removing all API-based integration
-  const gateways = [
-    { id: 'cod', title: 'Cash on Delivery', description: 'Pay with cash upon delivery.' },
-    { id: 'bacs', title: 'Direct Bank Transfer', description: 'Make your payment directly into our bank account. Please use your Order ID as the payment reference.' }
-  ];
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setIsAuthenticating(true);
+    setAuthError(null);
+    try {
+      const success = await login(authForm.email, authForm.password);
+      if (success) {
+        setShowAuthModal(false);
+      } else {
+        setAuthError('Invalid credentials. Please try again.');
+      }
+    } catch (err) {
+      setAuthError('Authentication failed. Please check your connection.');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   const subtotal = getCartTotal();
   const shipping = 0;
@@ -92,7 +114,6 @@ const Checkout = () => {
         const coupon = coupons[0];
         const subtotal = getCartTotal();
 
-        // 1. Expiry Check
         if (coupon.date_expires) {
           const expiryDate = new Date(coupon.date_expires);
           const now = new Date();
@@ -103,25 +124,21 @@ const Checkout = () => {
           }
         }
 
-        // 2. Usage Limit Check
         if (coupon.usage_limit !== null && coupon.usage_count >= coupon.usage_limit) {
           setDiscount(0);
           setCouponMessage({ text: 'This coupon usage limit has been reached.', isError: true });
           return;
         }
 
-        // 3. Discount Calculation
         let discountAmount = 0;
         if (coupon.discount_type === 'percent' || coupon.discount_type === 'percentage') {
           discountAmount = subtotal * (parseFloat(coupon.amount) / 100);
         } else if (coupon.discount_type === 'fixed_cart') {
           discountAmount = parseFloat(coupon.amount);
         } else {
-          // Fallback
           discountAmount = parseFloat(coupon.amount);
         }
 
-        // Prevent negative total
         if (discountAmount > subtotal) discountAmount = subtotal;
 
         setDiscount(discountAmount);
@@ -148,20 +165,22 @@ const Checkout = () => {
     setCouponMessage({ text: 'Coupon removed.', isError: false });
   };
 
-<<<<<<< HEAD
-
-
-  const handleSubmit = async (e, isPrePaid = false) => {
+  const handleSubmit = async (e, methodOverride = null, transactionId = null) => {
     if (e) e.preventDefault();
+    if (!isAuthenticated && !formData.email) {
+      setShowAuthModal(true);
+      return;
+    }
     setIsProcessing(true);
     setError(null);
 
     try {
-      // Create WooCommerce Order
+      const pmId = methodOverride || formData.paymentOption;
+      const gatewaysList = gateways;
       const orderData = {
-        payment_method: formData.paymentOption,
-        payment_method_title: gateways.find(g => g.id === formData.paymentOption)?.title || 'Payment',
-        set_paid: isPrePaid,
+        payment_method: pmId,
+        payment_method_title: gatewaysList.find(g => g.id === pmId)?.title || 'Payment',
+        transaction_id: transactionId || '',
         billing: {
           first_name: formData.useForBilling ? formData.firstName : formData.billingFirstName,
           last_name: formData.useForBilling ? formData.lastName : formData.billingLastName,
@@ -213,52 +232,6 @@ const Checkout = () => {
       setError(err.message || 'An error occurred while processing your order.');
       setIsProcessing(false);
     }
-=======
-  const handleAuthFormChange = (e) => {
-    const { name, value } = e.target;
-    setAuthForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    setIsAuthenticating(true);
-    setAuthError(null);
-
-    try {
-      // isLoginTab ? login (from AuthContext) : register (if implemented, else just login for now)
-      if (isLoginTab) {
-        const result = await login(authForm.email, authForm.password);
-        if (result.success) {
-          setShowAuthModal(false);
-          // Pre-fill form email if user logged in
-          setFormData(prev => ({ ...prev, email: authForm.email }));
-        } else {
-          setAuthError(result.message || 'Invalid email or password');
-        }
-      } else {
-        // Simple mock/redirect for registration for now
-        setAuthError('Registration is not available in checkout. Please use the login tab or visit the register page.');
-      }
-    } catch (err) {
-      setAuthError('An error occurred during authentication.');
-    } finally {
-      setIsAuthenticating(false);
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    console.log('Order Data:', { ...formData, discount, total });
-    alert('Order placed successfully! Thank you for your purchase.');
-    clearCart();
-    navigate('/');
->>>>>>> bfe81f35815e519fd924d21ac6129c74251eb2bf
   };
 
   if (cartItems.length === 0) {
@@ -271,166 +244,35 @@ const Checkout = () => {
   }
 
   return (
-<<<<<<< HEAD
-    <div className="page-content container">
-      <form onSubmit={(e) => !['paypal', 'ppcp-gateway', 'stripe'].includes(formData.paymentOption) && handleSubmit(e)} className="checkout-container">
-=======
     <>
       <div className="page-content container">
-      <form onSubmit={handleSubmit} className="checkout-container">
->>>>>>> bfe81f35815e519fd924d21ac6129c74251eb2bf
-        {/* Left Column: Form Fields */}
-        <div className="checkout-main">
-          {/* Contact Information */}
-          <section className="checkout-section">
-            <h3>Contact information</h3>
-            <div className="form-group">
-              <label>Email address</label>
-              <input
-                required
-                type="email"
-                name="email"
-                className="form-input"
-                placeholder="email@example.com"
-                value={formData.email}
-                onChange={handleInputChange}
-              />
-            </div>
-          </section>
-
-          {/* Shipping Address */}
-          <section className="checkout-section">
-            <h3>Shipping address</h3>
-            <div className="form-grid">
-              <div className="form-group full-width">
-                <label>Country/Region</label>
-                <select
-                  name="country"
-                  className="form-select"
-                  value={formData.country}
-                  onChange={handleInputChange}
-                >
-                  <option value="India">India</option>
-                  <option value="USA">United States</option>
-                  <option value="UK">United Kingdom</option>
-                </select>
-              </div>
-
+        <form onSubmit={handleSubmit} className="checkout-container">
+          <div className="checkout-main">
+            <section className="checkout-section">
+              <h3>Contact information</h3>
               <div className="form-group">
-                <label>First name</label>
+                <label>Email address</label>
                 <input
                   required
-                  type="text"
-                  name="firstName"
+                  type="email"
+                  name="email"
                   className="form-input"
-                  placeholder="First name"
-                  value={formData.firstName}
+                  placeholder="email@example.com"
+                  value={formData.email}
                   onChange={handleInputChange}
                 />
               </div>
+            </section>
 
-              <div className="form-group">
-                <label>Last name</label>
-                <input
-                  required
-                  type="text"
-                  name="lastName"
-                  className="form-input"
-                  placeholder="Last name"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="form-group full-width">
-                <label>Address</label>
-                <input
-                  required
-                  type="text"
-                  name="address"
-                  className="form-input"
-                  placeholder="Address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>City</label>
-                <input
-                  required
-                  type="text"
-                  name="city"
-                  className="form-input"
-                  placeholder="City"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>State</label>
-                <select
-                  name="state"
-                  className="form-select"
-                  value={formData.state}
-                  onChange={handleInputChange}
-                >
-                  <option value="Punjab">Punjab</option>
-                  <option value="Delhi">Delhi</option>
-                  <option value="Maharashtra">Maharashtra</option>
-                  <option value="Karnataka">Karnataka</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>PIN Code</label>
-                <input
-                  required
-                  type="text"
-                  name="pinCode"
-                  className="form-input"
-                  placeholder="PIN Code"
-                  value={formData.pinCode}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Phone (optional)</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  className="form-input"
-                  placeholder="Phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            <label className="checkbox-group">
-              <input
-                type="checkbox"
-                name="useForBilling"
-                checked={formData.useForBilling}
-                onChange={handleInputChange}
-              />
-              Use same address for billing
-            </label>
-          </section>
-
-          {/* Billing Address - Conditional Rendering */}
-          {!formData.useForBilling && (
-            <section className="checkout-section" style={{ marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
-              <h3>Billing address</h3>
+            <section className="checkout-section">
+              <h3>Shipping address</h3>
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label>Country/Region</label>
                   <select
-                    name="billingCountry"
+                    name="country"
                     className="form-select"
-                    value={formData.billingCountry}
+                    value={formData.country}
                     onChange={handleInputChange}
                   >
                     <option value="India">India</option>
@@ -444,10 +286,10 @@ const Checkout = () => {
                   <input
                     required
                     type="text"
-                    name="billingFirstName"
+                    name="firstName"
                     className="form-input"
                     placeholder="First name"
-                    value={formData.billingFirstName}
+                    value={formData.firstName}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -457,10 +299,10 @@ const Checkout = () => {
                   <input
                     required
                     type="text"
-                    name="billingLastName"
+                    name="lastName"
                     className="form-input"
                     placeholder="Last name"
-                    value={formData.billingLastName}
+                    value={formData.lastName}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -470,10 +312,10 @@ const Checkout = () => {
                   <input
                     required
                     type="text"
-                    name="billingAddress"
+                    name="address"
                     className="form-input"
                     placeholder="Address"
-                    value={formData.billingAddress}
+                    value={formData.address}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -483,10 +325,10 @@ const Checkout = () => {
                   <input
                     required
                     type="text"
-                    name="billingCity"
+                    name="city"
                     className="form-input"
                     placeholder="City"
-                    value={formData.billingCity}
+                    value={formData.city}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -494,9 +336,9 @@ const Checkout = () => {
                 <div className="form-group">
                   <label>State</label>
                   <select
-                    name="billingState"
+                    name="state"
                     className="form-select"
-                    value={formData.billingState}
+                    value={formData.state}
                     onChange={handleInputChange}
                   >
                     <option value="Punjab">Punjab</option>
@@ -511,302 +353,412 @@ const Checkout = () => {
                   <input
                     required
                     type="text"
-                    name="billingPinCode"
+                    name="pinCode"
                     className="form-input"
                     placeholder="PIN Code"
-                    value={formData.billingPinCode}
+                    value={formData.pinCode}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Phone (optional)</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    className="form-input"
+                    placeholder="Phone"
+                    value={formData.phone}
                     onChange={handleInputChange}
                   />
                 </div>
               </div>
-            </section>
-          )}
-          {/* Payment Options */}
-          <section className="checkout-section">
-            <h3>Payment options</h3>
 
-            {isFetchingGateways ? (
-              <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>Loading payment options...</div>
-            ) : gateways.length === 0 ? (
-              <div style={{ padding: '1rem', color: '#ef4444' }}>No payment methods available. Please contact the store owner.</div>
-            ) : (
-              gateways.map(gw => (
-                <div key={gw.id}>
-                  <div
-                    className={`option-box ${formData.paymentOption === gw.id ? 'active' : ''}`}
-                    onClick={() => setFormData(p => ({ ...p, paymentOption: gw.id }))}
-                  >
-                    <input type="radio" checked={formData.paymentOption === gw.id} readOnly />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500 }}>{gw.title}</div>
-                    </div>
-                  </div>
-
-                  {formData.paymentOption === gw.id && (
-                    <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem', marginTop: '-0.25rem', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
-                      <div
-                        style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
-                        dangerouslySetInnerHTML={{ __html: gw.description }}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-
-            <label className="checkbox-group" style={{ marginTop: '1.5rem' }}>
-              <input
-                type="checkbox"
-                name="addNote"
-                checked={formData.addNote}
-                onChange={handleInputChange}
-              />
-              Add a note to your order
-            </label>
-
-            {formData.addNote && (
-              <div className="form-group" style={{ marginTop: '1rem' }}>
-                <label>Order notes (optional)</label>
-                <textarea
-                  name="orderNote"
-                  className="form-input"
-                  style={{ minHeight: '100px', resize: 'vertical' }}
-                  placeholder="Notes about your order, e.g. special notes for delivery."
-                  value={formData.orderNote}
+              <label className="checkbox-group">
+                <input
+                  type="checkbox"
+                  name="useForBilling"
+                  checked={formData.useForBilling}
                   onChange={handleInputChange}
-                ></textarea>
-              </div>
-            )}
-          </section>
+                />
+                Use same address for billing
+              </label>
+            </section>
 
-          {error && (
-            <div style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              {error}
-            </div>
-          )}
+            {!formData.useForBilling && (
+              <section className="checkout-section" style={{ marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
+                <h3>Billing address</h3>
+                <div className="form-grid">
+                  <div className="form-group full-width">
+                    <label>Country/Region</label>
+                    <select
+                      name="billingCountry"
+                      className="form-select"
+                      value={formData.billingCountry}
+                      onChange={handleInputChange}
+                    >
+                      <option value="India">India</option>
+                      <option value="USA">United States</option>
+                      <option value="UK">United Kingdom</option>
+                    </select>
+                  </div>
 
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '2rem 0' }}>
-            By proceeding with your purchase you agree to our <Link to="/terms" style={{ textDecoration: 'underline' }}>Terms and Conditions</Link> and <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>
-          </p>
+                  <div className="form-group">
+                    <label>First name</label>
+                    <input
+                      required
+                      type="text"
+                      name="billingFirstName"
+                      className="form-input"
+                      placeholder="First name"
+                      value={formData.billingFirstName}
+                      onChange={handleInputChange}
+                    />
+                  </div>
 
-          <div className="checkout-footer">
-            <button type="button" className="btn-link" onClick={() => navigate('/cart')}>
-              ← Return to Cart
-            </button>
-<<<<<<< HEAD
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}
-              disabled={isProcessing}
-            >
-              {isProcessing ? 'Processing...' : 'Place Order'}
-=======
-            <button type="submit" className="btn-primary" style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}>
-              {isAuthenticated ? 'Place Order' : 'Login to Place Order'}
->>>>>>> bfe81f35815e519fd924d21ac6129c74251eb2bf
-            </button>
-          </div>
-        </div>
+                  <div className="form-group">
+                    <label>Last name</label>
+                    <input
+                      required
+                      type="text"
+                      name="billingLastName"
+                      className="form-input"
+                      placeholder="Last name"
+                      value={formData.billingLastName}
+                      onChange={handleInputChange}
+                    />
+                  </div>
 
-        {/* Right Column: Order Summary */}
-        <div className="summary-sidebar glass-panel">
-          <h3>Order summary</h3>
+                  <div className="form-group full-width">
+                    <label>Address</label>
+                    <input
+                      required
+                      type="text"
+                      name="billingAddress"
+                      className="form-input"
+                      placeholder="Address"
+                      value={formData.billingAddress}
+                      onChange={handleInputChange}
+                    />
+                  </div>
 
-          <div className="checkout-product-list">
-            {cartItems.map(item => (
-              <div key={item.id} className="checkout-product-card">
-                <div className="checkout-product-img-wrapper">
-                  <img src={item.image} alt={item.name} className="checkout-product-img" />
-                  <span className="product-badge">{item.quantity}</span>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 500, fontSize: '0.95rem' }}>{item.name}</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {item.description ? item.description.replace(/<[^>]*>/g, '').substring(0, 50) + '...' : 'Product description...'}
+                  <div className="form-group">
+                    <label>City</label>
+                    <input
+                      required
+                      type="text"
+                      name="billingCity"
+                      className="form-input"
+                      placeholder="City"
+                      value={formData.billingCity}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>State</label>
+                    <select
+                      name="billingState"
+                      className="form-select"
+                      value={formData.billingState}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Punjab">Punjab</option>
+                      <option value="Delhi">Delhi</option>
+                      <option value="Maharashtra">Maharashtra</option>
+                      <option value="Karnataka">Karnataka</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>PIN Code</label>
+                    <input
+                      required
+                      type="text"
+                      name="billingPinCode"
+                      className="form-input"
+                      placeholder="PIN Code"
+                      value={formData.billingPinCode}
+                      onChange={handleInputChange}
+                    />
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 600 }}>₹{(item.price * item.quantity).toFixed(2)}</div>
+              </section>
+            )}
+
+            <section className="checkout-section">
+              <h3>Payment options</h3>
+              {gateways.length === 0 ? (
+                <div style={{ padding: '1rem', color: '#ef4444' }}>No payment methods available. Please contact the store owner.</div>
+              ) : (
+                gateways.map(gw => (
+                  <div key={gw.id}>
+                    <div
+                      className={`option-box ${formData.paymentOption === gw.id ? 'active' : ''}`}
+                      onClick={() => setFormData(p => ({ ...p, paymentOption: gw.id }))}
+                    >
+                      <input type="radio" checked={formData.paymentOption === gw.id} readOnly />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>{gw.title}</div>
+                      </div>
+                    </div>
+                    {formData.paymentOption === gw.id && (
+                      <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem', marginTop: '-0.25rem', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
+                        <div
+                          style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
+                          dangerouslySetInnerHTML={{ __html: gw.description }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+
+              <label className="checkbox-group" style={{ marginTop: '1.5rem' }}>
+                <input
+                  type="checkbox"
+                  name="addNote"
+                  checked={formData.addNote}
+                  onChange={handleInputChange}
+                />
+                Add a note to your order
+              </label>
+
+              {formData.addNote && (
+                <div className="form-group" style={{ marginTop: '1rem' }}>
+                  <label>Order notes (optional)</label>
+                  <textarea
+                    name="orderNote"
+                    className="form-input"
+                    style={{ minHeight: '100px', resize: 'vertical' }}
+                    placeholder="Notes about your order, e.g. special notes for delivery."
+                    value={formData.orderNote}
+                    onChange={handleInputChange}
+                  ></textarea>
                 </div>
+              )}
+            </section>
+
+            {error && (
+              <div style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                {error}
               </div>
-            ))}
-          </div>
+            )}
 
-          <div className="add-coupons" onClick={() => setShowCoupon(!showCoupon)}>
-            <span>Add coupons</span>
-            <span style={{ transform: showCoupon ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}>▼</span>
-          </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '2rem 0' }}>
+              By proceeding with your purchase you agree to our <Link to="/terms" style={{ textDecoration: 'underline' }}>Terms and Conditions</Link> and <Link to="/privacy" style={{ textDecoration: 'underline' }}>Privacy Policy</Link>
+            </p>
 
-          {showCoupon && (
-            <div className="coupon-input-group">
-              <input
-                type="text"
-                placeholder="Discount code"
-                value={couponInput}
-                onChange={(e) => setCouponInput(e.target.value)}
-                disabled={isApplying}
-              />
+            <div className="checkout-footer">
+              <button type="button" className="btn-link" onClick={() => navigate('/cart')}>
+                ← Return to Cart
+              </button>
               <button
-                type="button"
+                type="submit"
                 className="btn-primary"
-                style={{ height: 'auto', borderRadius: '0.5rem', padding: '0.5rem 1.5rem' }}
-                onClick={handleApplyCoupon}
-                disabled={isApplying}
+                style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}
+                disabled={isProcessing}
               >
-                {isApplying ? 'Applying...' : 'Apply'}
+                {isProcessing ? 'Processing...' : (isAuthenticated ? 'Place Order' : 'Login to Place Order')}
               </button>
             </div>
-          )}
+          </div>
 
-          {couponMessage.text && (
-            <div style={{
-              fontSize: '0.85rem',
-              marginBottom: '1.5rem',
-              marginTop: '-1rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              color: couponMessage.isError ? '#ef4444' : 'var(--primary)'
-            }}>
-              <span>{couponMessage.text}</span>
-              {discount > 0 && !isApplying && (
+          <div className="summary-sidebar glass-panel">
+            <h3>Order summary</h3>
+            <div className="checkout-product-list">
+              {cartItems.map(item => (
+                <div key={item.id} className="checkout-product-card">
+                  <div className="checkout-product-img-wrapper">
+                    <img src={item.image} alt={item.name} className="checkout-product-img" />
+                    <span className="product-badge">{item.quantity}</span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, fontSize: '0.95rem' }}>{item.name}</div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      {item.description ? item.description.replace(/<[^>]*>/g, '').substring(0, 50) + '...' : 'Product description...'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 600 }}>₹{(item.price * item.quantity).toFixed(2)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="add-coupons" onClick={() => setShowCoupon(!showCoupon)}>
+              <span>Add coupons</span>
+              <span style={{ transform: showCoupon ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}>▼</span>
+            </div>
+
+            {showCoupon && (
+              <div className="coupon-input-group">
+                <input
+                  type="text"
+                  placeholder="Discount code"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  disabled={isApplying}
+                />
                 <button
                   type="button"
-                  onClick={handleRemoveCoupon}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#6b7280',
-                    textDecoration: 'underline',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    padding: '0'
-                  }}
+                  className="btn-primary"
+                  style={{ height: 'auto', borderRadius: '0.5rem', padding: '0.5rem 1.5rem' }}
+                  onClick={handleApplyCoupon}
+                  disabled={isApplying}
                 >
-                  Remove
+                  {isApplying ? 'Applying...' : 'Apply'}
                 </button>
-              )}
-            </div>
-          )}
-
-          <div className="summary-details">
-            <div className="summary-item">
-              <span>Subtotal</span>
-              <span>₹{subtotal.toFixed(2)}</span>
-            </div>
-            {discount > 0 && (
-              <div className="summary-item" style={{ color: 'var(--primary)' }}>
-                <span>Discount</span>
-                <span>-₹{discount.toFixed(2)}</span>
               </div>
             )}
-            <div className="summary-item">
-              <span>Free shipping</span>
-              <span>FREE</span>
-            </div>
-            <div className="summary-item total">
-              <span>Total</span>
-              <span>₹{total.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-    
-    {/* Auth Modal Overlay */}
-    {showAuthModal && (
-      <div className="modal-overlay" onClick={() => setShowAuthModal(false)}>
-        <div className="auth-modal" onClick={e => e.stopPropagation()}>
-          <div className="auth-modal-header">
-            <h2 className="text-gradient">Secure Checkout</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Please login to proceed with your order
-            </p>
-          </div>
-          
-          <div className="auth-tabs">
-            <div 
-              className={`auth-tab ${isLoginTab ? 'active' : ''}`}
-              onClick={() => setIsLoginTab(true)}
-            >
-              Login
-            </div>
-            <div 
-              className={`auth-tab ${!isLoginTab ? 'active' : ''}`}
-              onClick={() => setIsLoginTab(false)}
-            >
-              Sign Up
-            </div>
-          </div>
-          
-          <div className="auth-modal-body">
-            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {authError && <div className="auth-error">{authError}</div>}
-              
-              {!isLoginTab && (
-                <div className="form-group">
-                  <label>Full Name</label>
-                  <input 
-                    type="text" 
-                    name="name" 
-                    className="form-input" 
-                    placeholder="John Doe"
-                    value={authForm.name}
-                    onChange={handleAuthFormChange}
-                    required={!isLoginTab}
-                  />
+
+            {couponMessage.text && (
+              <div style={{
+                fontSize: '0.85rem',
+                marginBottom: '1.5rem',
+                marginTop: '-1rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                color: couponMessage.isError ? '#ef4444' : 'var(--primary)'
+              }}>
+                <span>{couponMessage.text}</span>
+                {discount > 0 && !isApplying && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#6b7280',
+                      textDecoration: 'underline',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      padding: '0'
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="summary-details">
+              <div className="summary-item">
+                <span>Subtotal</span>
+                <span>₹{subtotal.toFixed(2)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="summary-item" style={{ color: 'var(--primary)' }}>
+                  <span>Discount</span>
+                  <span>-₹{discount.toFixed(2)}</span>
                 </div>
               )}
-              
-              <div className="form-group">
-                <label>Email Address</label>
-                <input 
-                  required 
-                  type="email" 
-                  name="email" 
-                  className="form-input" 
-                  placeholder="email@example.com"
-                  value={authForm.email}
-                  onChange={handleAuthFormChange}
-                />
+              <div className="summary-item">
+                <span>Free shipping</span>
+                <span>FREE</span>
               </div>
-              
-              <div className="form-group">
-                <label>Password</label>
-                <input 
-                  required 
-                  type="password" 
-                  name="password" 
-                  className="form-input" 
-                  placeholder="••••••••"
-                  value={authForm.password}
-                  onChange={handleAuthFormChange}
-                />
+              <div className="summary-item total">
+                <span>Total</span>
+                <span>₹{total.toFixed(2)}</span>
               </div>
-              
-              <button 
-                type="submit" 
-                className="btn-primary" 
-                style={{ marginTop: '0.5rem', padding: '1rem' }}
-                disabled={isAuthenticating}
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {showAuthModal && (
+        <div className="modal-overlay" onClick={() => setShowAuthModal(false)}>
+          <div className="auth-modal" onClick={e => e.stopPropagation()}>
+            <div className="auth-modal-header">
+              <h2 className="text-gradient">Secure Checkout</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                Please login to proceed with your order
+              </p>
+            </div>
+
+            <div className="auth-tabs">
+              <div
+                className={`auth-tab ${isLoginTab ? 'active' : ''}`}
+                onClick={() => setIsLoginTab(true)}
               >
-                {isAuthenticating ? 'Processing...' : (isLoginTab ? 'Sign In & Continue' : 'Create Account')}
-              </button>
-              
-              <button 
-                type="button" 
-                className="btn-link" 
-                style={{ justifyContent: 'center', marginTop: '0.5rem' }}
-                onClick={() => setShowAuthModal(false)}
+                Login
+              </div>
+              <div
+                className={`auth-tab ${!isLoginTab ? 'active' : ''}`}
+                onClick={() => setIsLoginTab(false)}
               >
-                Continue as Guest
-              </button>
-            </form>
+                Sign Up
+              </div>
+            </div>
+
+            <div className="auth-modal-body">
+              <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {authError && <div className="auth-error">{authError}</div>}
+
+                {!isLoginTab && (
+                  <div className="form-group">
+                    <label>Full Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      className="form-input"
+                      placeholder="John Doe"
+                      value={authForm.name}
+                      onChange={handleAuthFormChange}
+                      required={!isLoginTab}
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Email Address</label>
+                  <input
+                    required
+                    type="email"
+                    name="email"
+                    className="form-input"
+                    placeholder="email@example.com"
+                    value={authForm.email}
+                    onChange={handleAuthFormChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Password</label>
+                  <input
+                    required
+                    type="password"
+                    name="password"
+                    className="form-input"
+                    placeholder="••••••••"
+                    value={authForm.password}
+                    onChange={handleAuthFormChange}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ marginTop: '0.5rem', padding: '1rem' }}
+                  disabled={isAuthenticating}
+                >
+                  {isAuthenticating ? 'Processing...' : (isLoginTab ? 'Sign In & Continue' : 'Create Account')}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-link"
+                  style={{ justifyContent: 'center', marginTop: '0.5rem' }}
+                  onClick={() => setShowAuthModal(false)}
+                >
+                  Continue as Guest
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </>
   );
 };
