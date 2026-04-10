@@ -34,9 +34,23 @@ export const AuthProvider = ({ children }) => {
             }
 
             const data = await response.json();
-            // Data structure from JWT plugin: { token, user_email, user_nicename, user_display_name }
+
+            // Extract User ID directly from the JWT token payload (more reliable)
+            let userId = null;
+            try {
+                const base64Url = data.token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                const payload = JSON.parse(jsonPayload);
+                userId = payload.data?.user?.id || payload.id;
+            } catch (e) {
+                console.error('JWT Decode Error:', e);
+            }
+
             const userProfile = {
-                id: data.user_id, // Might need to check if your plugin returns id or if you want to use nicename
+                id: userId,
                 email: data.user_email,
                 name: data.user_display_name,
                 nicename: data.user_nicename
@@ -52,6 +66,40 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const signup = async (email, password, name) => {
+        try {
+            const basicAuth = btoa(`${API_CONFIG.CONSUMER_KEY}:${API_CONFIG.CONSUMER_SECRET}`);
+            const response = await fetch(`${API_CONFIG.BASE_URL}wc/v3/customers`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${basicAuth}`
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    username: email.split('@')[0] + Math.floor(Math.random() * 1000),
+                    first_name: name.split(' ')[0],
+                    last_name: name.split(' ').slice(1).join(' ') || '',
+                    role: 'subscriber'
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                let message = errorData.message || 'Signup failed';
+                message = message.replace(/<[^>]*>?/gm, '');
+                throw new Error(message);
+            }
+
+            // After successful signup, log the user in to get the JWT token
+            return await login(email, password);
+        } catch (error) {
+            console.error('Signup Error:', error);
+            return { success: false, message: error.message };
+        }
+    };
+
     const logout = () => {
         setUser(null);
         localStorage.removeItem('aura_jwt_token');
@@ -59,7 +107,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user, loading }}>
             {children}
         </AuthContext.Provider>
     );

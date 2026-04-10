@@ -6,7 +6,7 @@ import API_CONFIG from '../apiConfig';
 
 const Checkout = () => {
   const { cartItems, getCartTotal, clearCart } = useCart();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, signup } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -166,11 +166,14 @@ const Checkout = () => {
     setIsAuthenticating(true);
     setAuthError(null);
     try {
-      const result = await login(authForm.email, authForm.password);
+      const result = isLoginTab 
+        ? await login(authForm.email, authForm.password)
+        : await signup(authForm.email, authForm.password, authForm.name);
+        
       if (result.success) {
         setShowAuthModal(false);
       } else {
-        setAuthError(result.message || 'Invalid credentials. Please try again.');
+        setAuthError(result.message || 'Authentication failed. Please try again.');
       }
     } catch (err) {
       setAuthError('Authentication failed. Please check your connection.');
@@ -398,6 +401,7 @@ const Checkout = () => {
                 <div className="form-group full-width">
                   <label>Country/Region</label>
                   <select
+                    required
                     name="country"
                     className="form-select"
                     value={formData.country}
@@ -464,6 +468,7 @@ const Checkout = () => {
                 <div className="form-group">
                   <label>State</label>
                   <select
+                    required
                     name="state"
                     className="form-select"
                     value={formData.state}
@@ -490,8 +495,9 @@ const Checkout = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Phone (optional)</label>
+                  <label>Phone</label>
                   <input
+                    required
                     type="tel"
                     name="phone"
                     className="form-input"
@@ -520,6 +526,7 @@ const Checkout = () => {
                   <div className="form-group full-width">
                     <label>Country/Region</label>
                     <select
+                      required
                       name="billingCountry"
                       className="form-select"
                       value={formData.billingCountry}
@@ -586,6 +593,7 @@ const Checkout = () => {
                   <div className="form-group">
                     <label>State</label>
                     <select
+                      required
                       name="billingState"
                       className="form-select"
                       value={formData.billingState}

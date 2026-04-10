@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import API_CONFIG from '../apiConfig';
 
 const Account = () => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [orders, setOrders] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
@@ -35,7 +37,8 @@ const Account = () => {
       setIsFetching(true);
       try {
         const basicAuth = btoa(`${API_CONFIG.CONSUMER_KEY}:${API_CONFIG.CONSUMER_SECRET}`);
-        const response = await fetch(`${API_CONFIG.BASE_URL}wc/v3/orders?email=${user.email}`, {
+        // IMPORTANT: WooCommerce API uses 'customer' parameter for ID, 'email' is not a standard filter
+        const response = await fetch(`${API_CONFIG.BASE_URL}wc/v3/orders?customer=${user.id}`, {
           headers: {
             'Authorization': `Basic ${basicAuth}`,
             'Content-Type': 'application/json'
@@ -160,29 +163,77 @@ const Account = () => {
               <h3 style={{ marginBottom: '2rem' }}>Recent Orders</h3>
               {isFetching ? <p>Loading orders...</p> : (
                 orders.length > 0 ? (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                        <th style={{ padding: '1rem 0' }}>Order</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Total</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map(order => (
-                        <tr key={order.id} style={{ borderBottom: '1px solid #eee' }}>
-                          <td style={{ padding: '1.2rem 0', color: 'var(--primary)' }}>#{order.id}</td>
-                          <td>{new Date(order.date_created).toLocaleDateString()}</td>
-                          <td>{order.status}</td>
-                          <td>₹{order.total} for {order.line_items.length} item(s)</td>
-                          <td><button className="btn-outline" style={{ padding: '5px 15px', fontSize: '0.8rem' }}>View</button></td>
+                  <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                          <th style={{ padding: '1.2rem' }}>Order</th>
+                          <th style={{ padding: '1.2rem' }}>Email</th>
+                          <th style={{ padding: '1.2rem' }}>Date</th>
+                          <th style={{ padding: '1.2rem' }}>Status</th>
+                          <th style={{ padding: '1.2rem' }}>Total</th>
+                          <th style={{ padding: '1.2rem' }}>Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : <p>No orders yet.</p>
+                      </thead>
+                      <tbody>
+                        {orders.map(order => (
+                          <tr key={order.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '1.2rem', color: 'var(--primary)', fontWeight: 'bold' }}>#{order.id}</td>
+                            <td style={{ padding: '1.2rem', fontSize: '0.9rem' }}>{order.billing?.email}</td>
+                            <td style={{ padding: '1.2rem' }}>{new Date(order.date_created).toLocaleDateString()}</td>
+                            <td style={{ padding: '1.2rem' }}>
+                              <span style={{
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '1rem',
+                                fontSize: '0.8rem',
+                                background: order.status === 'completed' ? '#059669' : (order.status === 'cancelled' ? '#dc2626' : 'var(--primary)'),
+                                color: 'white',
+                                textTransform: 'capitalize'
+                              }}>
+                                {order.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '1.2rem' }}>₹{order.total} <small className="text-muted">({order.line_items.length} items)</small></td>
+                            <td style={{ padding: '1.2rem', display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                onClick={() => navigate(`/order-success/${order.id}`)}
+                                className="btn-outline"
+                                style={{ padding: '5px 12px', fontSize: '0.8rem' }}
+                              >
+                                View
+                              </button>
+                              {['pending', 'processing'].includes(order.status) && (
+                                <button
+                                  onClick={async () => {
+                                    if (window.confirm('Are you sure you want to cancel this order?')) {
+                                      const basicAuth = btoa(`${API_CONFIG.CONSUMER_KEY}:${API_CONFIG.CONSUMER_SECRET}`);
+                                      const response = await fetch(`${API_CONFIG.BASE_URL}wc/v3/orders/${order.id}`, {
+                                        method: 'PUT',
+                                        headers: {
+                                          'Authorization': `Basic ${basicAuth}`,
+                                          'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({ status: 'cancelled' })
+                                      });
+                                      if (response.ok) {
+                                        // Refresh orders
+                                        window.location.reload();
+                                      }
+                                    }
+                                  }}
+                                  className="btn-outline"
+                                  style={{ padding: '5px 12px', fontSize: '0.8rem', color: '#f87171', borderColor: '#f87171' }}
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p>No orders yet. <Link to="/products" style={{ color: 'var(--primary)' }}>Start shopping!</Link></p>
               )}
             </div>
           )}
