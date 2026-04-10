@@ -29,7 +29,7 @@ const Cart = () => {
                 
                 <div style={{ flex: 1 }}>
                   <Link to={`/product/${item.id}`}><h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>{item.name}</h3></Link>
-                  <p style={{ color: 'var(--primary)', fontWeight: 'bold' }}>${item.price}</p>
+                  <p style={{ color: 'var(--primary)', fontWeight: 'bold' }}>₹{item.price}</p>
                 </div>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(255,255,255,0.05)', padding: '0.5rem', borderRadius: '2rem' }}>
@@ -47,7 +47,7 @@ const Cart = () => {
             <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>Order Summary</h3>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <span style={{ color: 'var(--text-muted)' }}>Subtotal</span>
-              <span>${getCartTotal().toFixed(2)}</span>
+              <span>₹{getCartTotal().toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <span style={{ color: 'var(--text-muted)' }}>Shipping</span>
@@ -55,7 +55,7 @@ const Cart = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', fontSize: '1.25rem', fontWeight: 'bold' }}>
               <span>Total</span>
-              <span style={{ color: 'var(--primary)' }}>${getCartTotal().toFixed(2)}</span>
+              <span style={{ color: 'var(--primary)' }}>₹{getCartTotal().toFixed(2)}</span>
             </div>
             <Link to="/checkout" className="btn-primary" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: '2rem' }}>Proceed to Checkout</Link>
           </div>

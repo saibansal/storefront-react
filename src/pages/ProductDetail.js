@@ -124,11 +124,11 @@ const ProductDetail = () => {
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '2rem' }}>
             {product.onSale ? (
               <>
-                <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '1.5rem' }}>${product.regularPrice.toFixed(2)}</span>
-                <span style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '2.5rem' }}>${product.salePrice.toFixed(2)}</span>
+                <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '1.5rem' }}>₹{product.regularPrice.toFixed(2)}</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '2.5rem' }}>₹{product.salePrice.toFixed(2)}</span>
               </>
             ) : (
-              <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '2.5rem' }}>${product.price.toFixed(2)}</span>
+              <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '2.5rem' }}>₹{product.price.toFixed(2)}</span>
             )}
           </div>
           

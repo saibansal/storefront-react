@@ -27,7 +27,10 @@ export const AuthProvider = ({ children }) => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Invalid credentials');
+                let message = errorData.message || 'Invalid credentials';
+                // Strip HTML tags if present (WordPress often returns them)
+                message = message.replace(/<[^>]*>?/gm, '');
+                throw new Error(message);
             }
 
             const data = await response.json();

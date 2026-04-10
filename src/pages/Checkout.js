@@ -120,10 +120,16 @@ const Checkout = () => {
             }]
           });
         },
-        onApprove: (data, actions) => {
-          return actions.order.capture().then(details => {
-            handleSubmit(null, 'paypal', details.id);
-          });
+        onApprove: async (data, actions) => {
+          const details = await actions.order.capture();
+          console.log('PayPal Payment Success:', details);
+
+          // Auto-fill email from PayPal if not already provided
+          if (!formData.email && details.payer && details.payer.email_address) {
+            setFormData(prev => ({ ...prev, email: details.payer.email_address }));
+          }
+
+          handleSubmit(null, 'paypal', details.id);
         },
         onCancel: () => {
           setError('Payment was cancelled. You can try again or choose another method.');
@@ -160,11 +166,11 @@ const Checkout = () => {
     setIsAuthenticating(true);
     setAuthError(null);
     try {
-      const success = await login(authForm.email, authForm.password);
-      if (success) {
+      const result = await login(authForm.email, authForm.password);
+      if (result.success) {
         setShowAuthModal(false);
       } else {
-        setAuthError('Invalid credentials. Please try again.');
+        setAuthError(result.message || 'Invalid credentials. Please try again.');
       }
     } catch (err) {
       setAuthError('Authentication failed. Please check your connection.');
@@ -263,7 +269,8 @@ const Checkout = () => {
       return;
     }
 
-    if (!isAuthenticated && !formData.email) {
+    // Check for authentication or guest email, but skip for PayPal if we already have a payment override
+    if (!isAuthenticated && !formData.email && !methodOverride) {
       setShowAuthModal(true);
       return;
     }
@@ -874,14 +881,23 @@ const Checkout = () => {
                   {isAuthenticating ? 'Processing...' : (isLoginTab ? 'Sign In & Continue' : 'Create Account')}
                 </button>
 
-                <button
+                {/* <button
                   type="button"
                   className="btn-link"
                   style={{ justifyContent: 'center', marginTop: '0.5rem' }}
-                  onClick={() => setShowAuthModal(false)}
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    // If they have at least entered an email, we can proceed as guest
+                    if (formData.email || authForm.email) {
+                      const finalEmail = formData.email || authForm.email;
+                      if (!formData.email) setFormData(prev => ({ ...prev, email: finalEmail }));
+                      // Use setTimeout to ensure state updates before submission
+                      setTimeout(() => handleSubmit(null), 100);
+                    }
+                  }}
                 >
                   Continue as Guest
-                </button>
+                </button> */}
               </form>
             </div>
           </div>

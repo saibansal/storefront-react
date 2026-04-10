@@ -110,11 +110,11 @@ const Products = () => {
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {product.onSale ? (
                       <>
-                        <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '0.9rem' }}>${product.regularPrice.toFixed(2)}</span>
-                        <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.2rem' }}>${product.salePrice.toFixed(2)}</span>
+                        <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through', fontSize: '0.9rem' }}>₹{product.regularPrice.toFixed(2)}</span>
+                        <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.2rem' }}>₹{product.salePrice.toFixed(2)}</span>
                       </>
                     ) : (
-                      <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.2rem' }}>${product.price.toFixed(2)}</span>
+                      <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.2rem' }}>₹{product.price.toFixed(2)}</span>
                     )}
                   </div>
                   <button 

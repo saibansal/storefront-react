@@ -14,6 +14,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Account from './pages/Account';
 import Login from './pages/Login';
+import OrderSuccess from './pages/OrderSuccess';
 import './index.css';
 import './layout.css';
 
@@ -39,6 +40,7 @@ function App() {
               <Route path="/cart" element={<Cart />} />
               
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-success/:orderId" element={<OrderSuccess />} />
               <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
               
               <Route path="/login" element={<Login />} />
