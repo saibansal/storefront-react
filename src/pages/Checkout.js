@@ -57,12 +57,31 @@ const Checkout = () => {
 
   useEffect(() => {
     if (formData.paymentOption === 'paypal' && !isScriptLoaded) {
-      const config = API_CONFIG.PAYPAL;
+      // Try to load settings from localStorage
+      const savedSettings = localStorage.getItem('paypal_gateway_settings');
+      let config = API_CONFIG.PAYPAL;
+
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.paypalEnabled) {
+            config = {
+              MODE: parsed.mode,
+              SANDBOX_CLIENT_ID: parsed.sandboxClientId,
+              LIVE_CLIENT_ID: parsed.liveClientId,
+              CURRENCY: parsed.currency || 'USD'
+            };
+          }
+        } catch (e) {
+          console.error("Failed to parse PayPal settings", e);
+        }
+      }
+
       const clientId = config.MODE === 'sandbox' ? config.SANDBOX_CLIENT_ID : config.LIVE_CLIENT_ID;
       if (clientId) {
         const script = document.createElement('script');
-        // Disable fastlane to avoid consent 400 errors and specify components
-        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${config.CURRENCY || 'USD'}&components=buttons&disable-funding=credit,card,fastlane`;
+        // Disable credit and card funding sources and specify components
+        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${config.CURRENCY || 'USD'}&components=buttons&disable-funding=credit,card`;
         script.async = true;
         script.onload = () => {
           setIsScriptLoaded(true);
@@ -74,7 +93,7 @@ const Checkout = () => {
 
   useEffect(() => {
     if (isScriptLoaded && formData.paymentOption === 'paypal') {
-        renderPayPalButtons();
+      renderPayPalButtons();
     }
   }, [formData.paymentOption, isScriptLoaded]);
 
@@ -86,9 +105,18 @@ const Checkout = () => {
 
       window.paypal.Buttons({
         createOrder: (data, actions) => {
+          const savedSettings = localStorage.getItem('paypal_gateway_settings');
+          let currency = 'USD';
+          if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            currency = parsed.currency || 'USD';
+          }
           return actions.order.create({
             purchase_units: [{
-              amount: { value: total.toFixed(2) }
+              amount: {
+                currency_code: currency,
+                value: total.toFixed(2)
+              }
             }]
           });
         },
@@ -103,10 +131,10 @@ const Checkout = () => {
         onError: (err) => {
           // Check for the "Detected popup close" error and handle it as a cancellation
           if (err && err.message && err.message.includes('Detected popup close')) {
-             setError('PayPal window was closed. Please click the PayPal button again to retry.');
+            setError('PayPal window was closed. Please click the PayPal button again to retry.');
           } else {
-             console.error('PayPal Error:', err);
-             setError('PayPal is currently unavailable. Please try another payment method.');
+            console.error('PayPal Error:', err);
+            setError('PayPal is currently unavailable. Please try another payment method.');
           }
         }
       }).render('#paypal-button-container');
@@ -228,6 +256,13 @@ const Checkout = () => {
 
   const handleSubmit = async (e, methodOverride = null, transactionId = null) => {
     if (e) e.preventDefault();
+
+    // Prevent order placement if PayPal is selected but payment hasn't been captured via onApprove
+    if (formData.paymentOption === 'paypal' && !methodOverride) {
+      setError('Please use the PayPal button to complete your payment.');
+      return;
+    }
+
     if (!isAuthenticated && !formData.email) {
       setShowAuthModal(true);
       return;
@@ -238,16 +273,16 @@ const Checkout = () => {
     try {
       const pmId = methodOverride || formData.paymentOption;
       const gatewaysList = gateways;
-      
+
       const getCountryCode = (countryName) => {
-        const codes = { 
-          'India': 'IN', 'United States': 'US', 'United Kingdom': 'GB', 'USA': 'US', 'UK': 'GB' 
+        const codes = {
+          'India': 'IN', 'United States': 'US', 'United Kingdom': 'GB', 'USA': 'US', 'UK': 'GB'
         };
         return codes[countryName] || countryName;
       };
 
       const getStateCode = (stateName) => {
-        const codes = { 
+        const codes = {
           'Punjab': 'PB', 'Delhi': 'DL', 'Maharashtra': 'MH', 'Karnataka': 'KA',
           'Tamil Nadu': 'TN', 'Gujarat': 'GJ', 'West Bengal': 'WB', 'Rajasthan': 'RJ',
           'Uttar Pradesh': 'UP', 'Telangana': 'TG', 'Haryana': 'HR', 'Bihar': 'BR'
@@ -290,7 +325,8 @@ const Checkout = () => {
           product_id: item.id,
           quantity: item.quantity
         })),
-        customer_note: formData.addNote ? formData.orderNote : ''
+        customer_note: formData.addNote ? formData.orderNote : '',
+        status: pmId === 'paypal' ? 'processing' : 'pending'
       };
 
       const basicAuth = btoa(`${API_CONFIG.CONSUMER_KEY}:${API_CONFIG.CONSUMER_SECRET}`);

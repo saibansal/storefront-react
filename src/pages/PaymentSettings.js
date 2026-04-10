@@ -5,7 +5,7 @@ const PaymentSettings = () => {
   const [settings, setSettings] = useState({
     paypalEnabled: true,
     mode: 'sandbox', // 'sandbox' or 'live'
-    sandboxClientId: '',
+    sandboxClientId: 'AZzExyhq-eICwsC6o76W0W9FkdITIKJ2oZBtaaKuZcocKE6TtZz4MrXLDmsQgioMoeXtvcfuvrKF2GYo',
     liveClientId: '',
     currency: 'USD'
   });
@@ -29,7 +29,7 @@ const PaymentSettings = () => {
     <div className="page-content container" style={{ maxWidth: '800px', marginTop: '4rem' }}>
       <div className="glass-panel" style={{ padding: '3rem' }}>
         <h1 className="text-gradient" style={{ marginBottom: '2rem' }}>Payment Gateway Settings</h1>
-        
+
         {saved && (
           <div style={{ background: 'rgba(52, 211, 153, 0.1)', color: '#10b981', padding: '1rem', borderRadius: '0.5rem', marginBottom: '2rem', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
             Settings saved successfully! You can now test the checkout with your credentials.
@@ -44,34 +44,34 @@ const PaymentSettings = () => {
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0.3rem 0 0 0' }}>Show PayPal as a payment option at checkout</p>
               </div>
               <label className="switch">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={settings.paypalEnabled}
-                  onChange={(e) => setSettings({...settings, paypalEnabled: e.target.checked})}
+                  onChange={(e) => setSettings({ ...settings, paypalEnabled: e.target.checked })}
                 />
                 <span className="slider round"></span>
               </label>
             </div>
-            
+
             <div style={{ marginBottom: '2rem' }}>
               <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold' }}>Environment Mode</label>
               <div style={{ display: 'flex', gap: '2rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.8rem', border: '1px solid var(--border-color)' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input 
-                    type="radio" 
-                    name="mode" 
-                    checked={settings.mode === 'sandbox'} 
-                    onChange={() => setSettings({...settings, mode: 'sandbox'})}
-                  /> 
+                  <input
+                    type="radio"
+                    name="mode"
+                    checked={settings.mode === 'sandbox'}
+                    onChange={() => setSettings({ ...settings, mode: 'sandbox' })}
+                  />
                   <span>Sandbox (Testing)</span>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input 
-                    type="radio" 
-                    name="mode" 
-                    checked={settings.mode === 'live'} 
-                    onChange={() => setSettings({...settings, mode: 'live'})}
-                  /> 
+                  <input
+                    type="radio"
+                    name="mode"
+                    checked={settings.mode === 'live'}
+                    onChange={() => setSettings({ ...settings, mode: 'live' })}
+                  />
                   <span style={{ color: 'var(--accent)' }}>Live (Production)</span>
                 </label>
               </div>
@@ -82,25 +82,25 @@ const PaymentSettings = () => {
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                   {settings.mode === 'sandbox' ? 'Sandbox Client ID' : 'Live Client ID'}
                 </label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   placeholder="Enter Client ID"
                   value={settings.mode === 'sandbox' ? settings.sandboxClientId : settings.liveClientId}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (settings.mode === 'sandbox') setSettings({...settings, sandboxClientId: val});
-                    else setSettings({...settings, liveClientId: val});
+                    if (settings.mode === 'sandbox') setSettings({ ...settings, sandboxClientId: val });
+                    else setSettings({ ...settings, liveClientId: val });
                   }}
                   required
                 />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Currency</label>
-                <select 
+                <select
                   className="form-input"
                   value={settings.currency}
-                  onChange={(e) => setSettings({...settings, currency: e.target.value})}
+                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
                 >
                   <option value="USD">USD - US Dollar</option>
                   <option value="INR">INR - Indian Rupee</option>
@@ -122,7 +122,7 @@ const PaymentSettings = () => {
           <p>These settings are stored locally in your browser for demonstration purposes. In a production environment, these would be managed securely in the backend.</p>
         </div>
       </div>
-      
+
       <style>{`
         .switch {
           position: relative;
