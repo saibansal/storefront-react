@@ -38,6 +38,10 @@ const Checkout = () => {
   const [couponMessage, setCouponMessage] = useState({ text: '', isError: false });
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
+  const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
+  const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false);
+  const [confirmedTransactionId, setConfirmedTransactionId] = useState(null);
 
   // Auth Modal State
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -104,6 +108,16 @@ const Checkout = () => {
       if (container.children.length > 0) return;
 
       window.paypal.Buttons({
+        onClick: (data, actions) => {
+          const validationError = runFormValidation();
+          if (validationError) {
+            setError(validationError);
+            setStatusMessage({ text: '❌ Validation Failed: Please check required fields.', type: 'error' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return actions.reject();
+          }
+          return actions.resolve();
+        },
         createOrder: (data, actions) => {
           const savedSettings = localStorage.getItem('paypal_gateway_settings');
           let currency = 'USD';
@@ -129,7 +143,10 @@ const Checkout = () => {
             setFormData(prev => ({ ...prev, email: details.payer.email_address }));
           }
 
-          handleSubmit(null, 'paypal', details.id);
+          setIsPaymentConfirmed(true);
+          setConfirmedTransactionId(details.id);
+          setStatusMessage({ text: '💳 Payment Received! Click "Place Order" to finalize.', type: 'success' });
+          setError(null);
         },
         onCancel: () => {
           setError('Payment was cancelled. You can try again or choose another method.');
@@ -154,6 +171,14 @@ const Checkout = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const handleAuthFormChange = (e) => {
@@ -263,20 +288,62 @@ const Checkout = () => {
     setCouponMessage({ text: 'Coupon removed.', isError: false });
   };
 
+  const runFormValidation = (methodOverride = null) => {
+    const newErrors = {};
+    if (!isAuthenticated && !formData.email) newErrors.email = true;
+    if (!formData.firstName) newErrors.firstName = true;
+    if (!formData.lastName) newErrors.lastName = true;
+    if (!formData.address) newErrors.address = true;
+    if (!formData.city) newErrors.city = true;
+    if (!formData.state) newErrors.state = true;
+    if (!formData.pinCode) newErrors.pinCode = true;
+    if (!formData.phone) newErrors.phone = true;
+    
+    if (!formData.useForBilling) {
+      if (!formData.billingFirstName) newErrors.billingFirstName = true;
+      if (!formData.billingLastName) newErrors.billingLastName = true;
+      if (!formData.billingAddress) newErrors.billingAddress = true;
+      if (!formData.billingCity) newErrors.billingCity = true;
+      if (!formData.billingState) newErrors.billingState = true;
+      if (!formData.billingPinCode) newErrors.billingPinCode = true;
+    }
+
+    setFormErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return "Please fill in all required fields marked in red.";
+    if (!formData.paymentOption && !methodOverride) return "Please select a payment method";
+    return null;
+  };
+
   const handleSubmit = async (e, methodOverride = null, transactionId = null) => {
     if (e) e.preventDefault();
 
-    // Prevent order placement if PayPal is selected but payment hasn't been captured via onApprove
+    // 1. Basic field validation using the helper
+    const validationError = runFormValidation(methodOverride);
+    if (validationError) {
+      setError(validationError);
+      setStatusMessage({ text: '❌ Validation Failed: Please check required fields.', type: 'error' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // 2. Prevent order placement if PayPal is selected but payment isn't confirmed yet
+    if (formData.paymentOption === 'paypal' && !isPaymentConfirmed && !methodOverride) {
+      setError('Please complete the PayPal payment first.');
+      return;
+    }
+
+    setStatusMessage({ text: '✅ Validation Successful: Placing your order...', type: 'success' });
     if (formData.paymentOption === 'paypal' && !methodOverride) {
       setError('Please use the PayPal button to complete your payment.');
       return;
     }
 
-    // Check for authentication or guest email, but skip for PayPal if we already have a payment override
+    // 3. Check for authentication or guest email
     if (!isAuthenticated && !formData.email && !methodOverride) {
       setShowAuthModal(true);
       return;
     }
+
     setIsProcessing(true);
     setError(null);
 
@@ -374,9 +441,30 @@ const Checkout = () => {
     );
   }
 
+  const getErrorStyle = (fieldName) => {
+    return formErrors[fieldName] ? { borderColor: '#f87171', boxShadow: '0 0 0 1px #f87171' } : {};
+  };
+
   return (
     <>
       <div className="page-content container">
+        {statusMessage.text && (
+          <div style={{
+            padding: '1rem 2rem',
+            margin: '1rem 0 2rem 0',
+            borderRadius: '0.5rem',
+            backgroundColor: statusMessage.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+            border: `1px solid ${statusMessage.type === 'success' ? '#10b981' : '#ef4444'}`,
+            color: statusMessage.type === 'success' ? '#10b981' : '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            fontWeight: 'bold',
+            animation: 'slideDown 0.3s ease-out'
+          }}>
+            <span>{statusMessage.text}</span>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="checkout-container">
           <div className="checkout-main">
             <section className="checkout-section">
@@ -388,6 +476,7 @@ const Checkout = () => {
                   type="email"
                   name="email"
                   className="form-input"
+                  style={getErrorStyle('email')}
                   placeholder="email@example.com"
                   value={formData.email}
                   onChange={handleInputChange}
@@ -404,6 +493,7 @@ const Checkout = () => {
                     required
                     name="country"
                     className="form-select"
+                    style={getErrorStyle('country')}
                     value={formData.country}
                     onChange={handleInputChange}
                   >
@@ -420,6 +510,7 @@ const Checkout = () => {
                     type="text"
                     name="firstName"
                     className="form-input"
+                    style={getErrorStyle('firstName')}
                     placeholder="First name"
                     value={formData.firstName}
                     onChange={handleInputChange}
@@ -433,6 +524,7 @@ const Checkout = () => {
                     type="text"
                     name="lastName"
                     className="form-input"
+                    style={getErrorStyle('lastName')}
                     placeholder="Last name"
                     value={formData.lastName}
                     onChange={handleInputChange}
@@ -446,6 +538,7 @@ const Checkout = () => {
                     type="text"
                     name="address"
                     className="form-input"
+                    style={getErrorStyle('address')}
                     placeholder="Address"
                     value={formData.address}
                     onChange={handleInputChange}
@@ -459,6 +552,7 @@ const Checkout = () => {
                     type="text"
                     name="city"
                     className="form-input"
+                    style={getErrorStyle('city')}
                     placeholder="City"
                     value={formData.city}
                     onChange={handleInputChange}
@@ -471,6 +565,7 @@ const Checkout = () => {
                     required
                     name="state"
                     className="form-select"
+                    style={getErrorStyle('state')}
                     value={formData.state}
                     onChange={handleInputChange}
                   >
@@ -488,6 +583,7 @@ const Checkout = () => {
                     type="text"
                     name="pinCode"
                     className="form-input"
+                    style={getErrorStyle('pinCode')}
                     placeholder="PIN Code"
                     value={formData.pinCode}
                     onChange={handleInputChange}
@@ -501,6 +597,7 @@ const Checkout = () => {
                     type="tel"
                     name="phone"
                     className="form-input"
+                    style={getErrorStyle('phone')}
                     placeholder="Phone"
                     value={formData.phone}
                     onChange={handleInputChange}
@@ -694,16 +791,23 @@ const Checkout = () => {
               <button type="button" className="btn-link" onClick={() => navigate('/cart')}>
                 ← Return to Cart
               </button>
-              {formData.paymentOption !== 'paypal' && (
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ padding: '1rem 3rem', borderRadius: '0.5rem' }}
-                  disabled={isProcessing || !formData.paymentOption}
-                >
-                  {isProcessing ? 'Processing...' : (isAuthenticated ? 'Place Order' : 'Login to Place Order')}
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn-primary"
+                style={{
+                  padding: '1rem 3rem',
+                  borderRadius: '0.5rem',
+                  opacity: (formData.paymentOption === 'paypal' && !isPaymentConfirmed) ? 0.5 : 1
+                }}
+                disabled={isProcessing || !formData.paymentOption || (formData.paymentOption === 'paypal' && !isPaymentConfirmed)}
+                onClick={(e) => handleSubmit(e, isPaymentConfirmed ? 'paypal' : null, confirmedTransactionId)}
+              >
+                {isProcessing ? 'Processing...' : (
+                  formData.paymentOption === 'paypal' && isPaymentConfirmed 
+                    ? 'Finalize Order' 
+                    : (isAuthenticated ? 'Place Order' : 'Login to Place Order')
+                )}
+              </button>
             </div>
           </div>
 
